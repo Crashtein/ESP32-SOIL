@@ -5,12 +5,10 @@ permissions:
 name: Build and release
 on:
   push:
+    tags:
+    - 'v*'
     branches:
-    - main
     - release/*
-  pull_request:
-    branches:
-    - main
 
 jobs:
   build:
