@@ -32,7 +32,7 @@ void Config::load()
     std::unique_ptr<char[]> buf(new char[size]);
     configFile.readBytes(buf.get(), size);
 
-    StaticJsonDocument<256> json;
+    JsonDocument json;
     DeserializationError error = deserializeJson(json, buf.get());
     if (error)
     {
@@ -61,7 +61,7 @@ void Config::save()
         return;
     }
 
-    StaticJsonDocument<256> json;
+    JsonDocument json;
     json["mqtt_server"] = mqtt_server;
     json["mqtt_port"] = mqtt_port;
     json["mqtt_user"] = mqtt_user;
