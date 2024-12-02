@@ -1,13 +1,62 @@
-name: Build
+permissions:
+  contents: write
+  actions: read
 
-on: [push]
+name: Build and release
+on:
+  push:
+    branches:
+    - main
+    - release/*
+  pull_request:
+    branches:
+    - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v2
-      - uses: docker://shaguarger/platformio:latest
-        with:
-          args: pio run
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Build binaries
+      uses: docker://shaguarger/platformio:latest
+      env:
+        PROJECT_VERSION: ${{ github.ref_name }}  # Skrócone do nazwy gałęzi lub tagu
+      with:
+        args: pio run -e release
+
+    - name: Upload build binaries
+      uses: actions/upload-artifact@v3
+      with:
+        name: firmware
+        path: .pio/build/release/firmware.bin  # Upewnij się, że ścieżka i nazwa pliku są poprawne
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Build Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: firmware
+        path: ./release
+
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}  # Użycie samej nazwy tagu
+        release_name: "Release ${{ github.ref_name }}"
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create-release.outputs.upload_url }}
+        asset_path: ./release/firmware.bin
+        asset_name: output.bin
+        asset_content_type: application/octet-stream
