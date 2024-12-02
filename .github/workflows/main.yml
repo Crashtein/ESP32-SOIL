@@ -21,7 +21,7 @@ jobs:
     - name: Build binaries
       uses: docker://shaguarger/platformio:latest
       env:
-        PROJECT_VERSION: ${{ github.ref_name }}  # Skrócone do nazwy gałęzi lub tagu
+        PROJECT_VERSION: ${{ github.ref_name }}
       with:
         args: pio run -e release
 
@@ -29,7 +29,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: firmware
-        path: .pio/build/release/firmware.bin  # Upewnij się, że ścieżka i nazwa pliku są poprawne
+        path: .pio/build/release/firmware.bin
 
   release:
     needs: build
@@ -46,7 +46,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref_name }}  # Użycie samej nazwy tagu
+        tag_name: ${{ github.ref_name }}
         release_name: "Release ${{ github.ref_name }}"
         draft: false
         prerelease: false
