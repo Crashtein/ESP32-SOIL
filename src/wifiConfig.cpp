@@ -1,7 +1,7 @@
 #include "WifiConfig.h"
 #include "Debug.h"
 
-static char passwordNoChangeMask[] = "Leave it to use saved";
+static char passwordNoChangeMask[] = "If provided earlier leave it to use saved";
 
 WifiConfig& WifiConfig::getInstance() {
     static WifiConfig instance;
@@ -14,7 +14,7 @@ WifiConfig::WifiConfig() {
     custom_mqtt_server = new WiFiManagerParameter("server", "MQTT server (ssl://<domain> or tcp://<domain>)", 
         DEFAULT_MQTT_SERVER, 40);
     custom_mqtt_port = new WiFiManagerParameter("port", "MQTT port", 
-        config.mqtt_port, 6);
+        DEFAULT_MQTT_PORT, 6);
     custom_mqtt_user = new WiFiManagerParameter("user", "MQTT user", 
         config.mqtt_user, 40);
     custom_mqtt_password = new WiFiManagerParameter("password", "MQTT password", 
