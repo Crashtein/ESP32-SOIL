@@ -1,6 +1,6 @@
 #pragma once
 
-#include <PubSubclient.h>
+#include <PubSubClient.h>
 #include <WiFiClientSecure.h>
 #include "Config.h"
 #include "Certificates.h"
