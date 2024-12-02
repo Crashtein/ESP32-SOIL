@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "Config.h"
 #include "MQTTManager.h"
-#include "WifiConfig.h"
+#include "wifiConfig.h"
 #include "Debug.h"
 #include "OTAUpdater.h"
 
@@ -41,7 +41,7 @@ void checkSerialCommands() {
 void setup() {
     Serial.begin(115200);
     OTAUpdater::getInstance().printInfo();
-    
+
     Config::getInstance().load();
     WifiConfig::getInstance().setup();
     MQTTManager::getInstance().setup();

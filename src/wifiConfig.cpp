@@ -1,4 +1,4 @@
-#include "WifiConfig.h"
+#include "wifiConfig.h"
 #include "Debug.h"
 
 static char passwordNoChangeMask[] = "If provided earlier leave it to use saved";
