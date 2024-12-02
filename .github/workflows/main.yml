@@ -10,4 +10,4 @@ jobs:
       - uses: actions/checkout@v2
       - uses: docker://sstruss/platformio:latest
         with:
-          args: run
+          args: pio run
