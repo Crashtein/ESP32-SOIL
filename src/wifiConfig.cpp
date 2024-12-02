@@ -18,7 +18,7 @@ WifiConfig::WifiConfig() {
     custom_mqtt_user = new WiFiManagerParameter("user", "MQTT user", 
         config.mqtt_user, 40);
     custom_mqtt_password = new WiFiManagerParameter("password", "MQTT password", 
-        passwordNoChangeMask, 40);
+        passwordNoChangeMask, 50);
 }
 
 void WifiConfig::setup() {
