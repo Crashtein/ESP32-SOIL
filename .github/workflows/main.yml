@@ -54,6 +54,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
     - name: Download build artifacts
       uses: actions/download-artifact@v3
       with:
@@ -83,12 +86,14 @@ jobs:
         asset_path: ./release/firmware.bin
         asset_name: firmware-${{ github.ref_name }}.bin
         asset_content_type: application/octet-stream
+
     - name: Update Latest Release
       run: |
+        cp ./release/firmware.bin ./release/firmware-latest.bin
         gh release delete latest --yes || true
         gh release create latest \
           --title "Latest Release" \
-          --notes "This is an automatically updated release containing the latest firmware build." \
-          ./release/firmware.bin#firmware-latest.bin
+          --notes "This is an automatically updated release containing the latest firmware build from ${{ github.ref_name }}" \
+          ./release/firmware-latest.bin
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
