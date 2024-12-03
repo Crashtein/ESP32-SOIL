@@ -5,13 +5,57 @@ permissions:
 name: Build and release
 on:
   push:
-    tags:
-      - 'v*'
     branches:
       - release/*
+    tags:
+      - 'v*'
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    if: "!startsWith(github.ref, 'refs/tags/')"
+    outputs:
+      new_tag: ${{ steps.create_tag.outputs.new_tag }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          # Get the latest tag, default to v0.0.0 if none exists
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $latest_tag"
+          echo "latest_tag=${latest_tag}" >> $GITHUB_OUTPUT
+
+      - name: Increment version
+        id: create_tag
+        run: |
+          latest_tag=${{ steps.get_latest_tag.outputs.latest_tag }}
+          # Remove 'v' prefix and split into array
+          IFS='.' read -ra VERSION <<< "${latest_tag#v}"
+          MAJOR=${VERSION[0]:-0}
+          MINOR=${VERSION[1]:-0}
+          PATCH=${VERSION[2]:-0}
+          
+          # Increment patch version
+          PATCH=$((PATCH + 1))
+          
+          # Create new tag
+          new_tag="v$MAJOR.$MINOR.$PATCH"
+          echo "New tag: $new_tag"
+          echo "new_tag=${new_tag}" >> $GITHUB_OUTPUT
+          
+          # Create and push new tag
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a $new_tag -m "Release $new_tag"
+          git push origin $new_tag
+
   build:
+    needs: [version]
+    if: always() && (startsWith(github.ref, 'refs/tags/') || success())
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
@@ -89,10 +133,12 @@ jobs:
 
     - name: Update Latest Release
       run: |
+        cp ./release/firmware.bin ./release/firmware-latest.bin
         gh release delete latest --yes || true
         gh release create latest \
           --title "Latest Release" \
           --notes "This is an automatically updated release containing the latest firmware build from ${{ github.ref_name }}" \
-          ./release/firmware.bin
+          ./release/firmware-latest.bin
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
