@@ -6,6 +6,7 @@ name: Build and release
 on:
   push:
     branches:
+      - main
       - release/*
     tags:
       - 'v*'
