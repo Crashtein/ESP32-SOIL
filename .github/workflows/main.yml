@@ -83,3 +83,13 @@ jobs:
         asset_path: ./release/firmware.bin
         asset_name: firmware-${{ github.ref_name }}.bin
         asset_content_type: application/octet-stream
+
+    - name: Update Latest Release
+      run: |
+        gh release delete latest --yes || true
+        gh release create latest \
+          --title "Latest Release" \
+          --notes "This is an automatically updated release containing the latest firmware build." \
+          ./release/firmware.bin#firmware-latest.bin
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
