@@ -22,7 +22,6 @@ jobs:
         PROJECT_VERSION: ${{ github.ref_name }}
       with:
         args: pio run -e release
-
     - name: Upload build binaries
       uses: actions/upload-artifact@v3
       with:
