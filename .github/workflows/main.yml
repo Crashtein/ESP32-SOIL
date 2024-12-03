@@ -6,9 +6,9 @@ name: Build and release
 on:
   push:
     tags:
-    - 'v*'
+      - 'v*'
     branches:
-    - release/*
+      - release/*
 
 jobs:
   build:
@@ -16,45 +16,70 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
-    - name: Build binaries
-      uses: docker://shaguarger/platformio:latest
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio
+
+    - name: Cache PlatformIO
+      uses: actions/cache@v3
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
+        restore-keys: |
+          ${{ runner.os }}-platformio-
+
+    - name: Build firmware
+      run: pio run -e release
       env:
         PROJECT_VERSION: ${{ github.ref_name }}
-      with:
-        args: pio run -e release
-    - name: Upload build binaries
+
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v3
       with:
         name: firmware
         path: .pio/build/release/firmware.bin
+        if-no-files-found: error
 
   release:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-    - name: Download Build Artifact
+    - name: Download build artifacts
       uses: actions/download-artifact@v3
       with:
         name: firmware
         path: ./release
 
     - name: Create GitHub Release
+      id: create-release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ github.ref_name }}
         release_name: "Release ${{ github.ref_name }}"
+        body: |
+          Firmware release ${{ github.ref_name }}
+          Build date: ${{ github.event.repository.updated_at }}
         draft: false
         prerelease: false
 
     - name: Upload Release Asset
-      id: upload-release-asset 
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create-release.outputs.upload_url }}
         asset_path: ./release/firmware.bin
-        asset_name: firmware.bin
+        asset_name: firmware-${{ github.ref_name }}.bin
         asset_content_type: application/octet-stream
