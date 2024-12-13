@@ -90,7 +90,7 @@ void setup() {
     
     tft.setTextSize(2);
     tft.setCursor(0, 8);
-    tft.printf("Version: %s\n", PROJECT_VERSION);
+    tft.printf("Version:\n%s\n", PROJECT_VERSION);
     tft.setCursor(0, 40);
     tft.printf("Compilation date:\n%s\n%s\n", __DATE__, __TIME__);
 
