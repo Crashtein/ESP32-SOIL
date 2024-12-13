@@ -102,7 +102,8 @@ void setup() {
     pinMode(33, INPUT);
 
     // Konfiguracja pinu przycisku
-    pinMode(BUTTON_PIN, INPUT_PULLUP);
+    pinMode(0, INPUT_PULLUP);
+    pinMode(35, INPUT_PULLUP);
 
     // Sprawdź czy wybudzenie nastąpiło z deep sleep
     esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
@@ -116,6 +117,10 @@ void setup() {
 
     Config::getInstance().load();
     WifiConfig::getInstance().setup();
+    if (digitalRead(0) == LOW || digitalRead(35) == LOW)
+    {
+      update();
+    }
     MQTTManager::getInstance().setup();
 
     tft.fillScreen(TFT_BLACK);
@@ -143,7 +148,7 @@ void loop() {
   tft.printf("Value for pin %d: %d   \n", 33, analogRead(33));
 
   // Sprawdź czy przycisk został naciśnięty
-  if (digitalRead(BUTTON_PIN) == LOW)
+  if (digitalRead(0) == LOW || digitalRead(35) == LOW)
   {
     Serial.println("Przycisk naciśnięty - resetuję timer");
     lastActivityTime = millis();
