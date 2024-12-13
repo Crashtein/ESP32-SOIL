@@ -74,13 +74,20 @@ jobs:
         python -m pip install --upgrade pip
         pip install platformio
 
-    - name: Cache PlatformIO
-      uses: actions/cache@v3
-      with:
-        path: ~/.platformio
-        key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
-        restore-keys: |
-          ${{ runner.os }}-platformio-
+    - name: Install PlatformIO libs and configure
+      run: |
+        pio lib install
+        sed -i '/#include <User_Setup.h>/a#include <User_Setups/Setup25_TTGO_T_Display.h>' .pio/libdeps/*/TFT_eSPI/User_Setup_Select.h
+        sed -i 's|^#include <User_Setup.h>|//#include <User_Setup.h>|' .pio/libdeps/*/TFT_eSPI/User_Setup_Select.h
+
+
+    # - name: Cache PlatformIO
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: ~/.platformio
+    #     key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-platformio-
 
     - name: Build firmware
       run: pio run -e release
