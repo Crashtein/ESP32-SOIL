@@ -77,7 +77,7 @@ jobs:
     - name: Install PlatformIO libs and configure
       run: |
         pio lib install
-        sed -i '/#include <User_Setup.h>/a#include <User_Setups/Setup25_TTGO_T_Display.h>' .pio/libdeps/*/TFT_eSPI/User_Setup_Select.h
+        sed -i '/^#include <User_Setup.h>/a#include <User_Setups/Setup25_TTGO_T_Display.h>' .pio/libdeps/*/TFT_eSPI/User_Setup_Select.h
         sed -i 's|^#include <User_Setup.h>|//#include <User_Setup.h>|' .pio/libdeps/*/TFT_eSPI/User_Setup_Select.h
 
 
