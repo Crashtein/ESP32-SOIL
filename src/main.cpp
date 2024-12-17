@@ -41,7 +41,7 @@ void goToSleep()
 void tftSetup(){
   // Inicjalizacja wyświetlacza
   tft.init();
-  tft.setRotation(3); // Ustaw orientację: 1 = poziomo
+  tft.setRotation(1); // Ustaw orientację: 1 = poziomo
   // Wypełnij ekran kolorem czarnym
   tft.fillScreen(TFT_BLACK);
 
@@ -98,6 +98,7 @@ void setup() {
     pinMode(37, INPUT);
     pinMode(38, INPUT);
     pinMode(39, INPUT);
+
     pinMode(32, INPUT);
     pinMode(33, INPUT);
 
@@ -134,18 +135,19 @@ void loop() {
   tft.setTextSize(1);
   tft.setCursor(190, 0);
   tft.printf("B:%3.2fV",(1.19*2.0*analogRead(32)*3.3/4095.0));
+  tft.setTextSize(2);
   tft.setCursor(0, 8);
-  tft.printf("Value for pin %d: %d   \n", 36, analogRead(36));
-  tft.setCursor(0, 16);
-  tft.printf("Value for pin %d: %d   \n", 37, analogRead(37));
+  tft.printf("Sensor #1: %d   \n", analogRead(36));
   tft.setCursor(0, 24);
-  tft.printf("Value for pin %d: %d   \n", 38, analogRead(38));
-  tft.setCursor(0, 32);
-  tft.printf("Value for pin %d: %d   \n", 39, analogRead(39));
+  tft.printf("Sensor #2: %d   \n", analogRead(37));
   tft.setCursor(0, 40);
+  tft.printf("Sensor #3: %d   \n", analogRead(38));
+  tft.setCursor(0, 56);
+  tft.printf("Sensor #4: %d   \n", analogRead(39));
+  // tft.setCursor(0, 40);
   // tft.printf("Value for pin %d: %d   \n", 32, analogRead(32));
-  tft.setCursor(0, 48);
-  tft.printf("Value for pin %d: %d   \n", 33, analogRead(33));
+  // tft.setCursor(0, 48);
+  // tft.printf("Value for pin %d: %d   \n", 33, analogRead(33));
 
   // Sprawdź czy przycisk został naciśnięty
   if (digitalRead(0) == LOW || digitalRead(35) == LOW)
