@@ -1,6 +1,7 @@
 #include "Config.h"
 #include "Debug.h"
 
+
 void Config::load()
 {
     if (!SPIFFS.begin(true))

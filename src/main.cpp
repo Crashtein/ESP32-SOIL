@@ -6,14 +6,16 @@
 #include "OTAUpdater.h"
 #include "DHT22Reader.h"
 #include "PinManager.h"
+#include "ExtendedTFT_eSPI.h"
 
 #include <TFT_eSPI.h> // Biblioteka TFT_eSPI
 #include <SPI.h>
 // Utwórz obiekt wyświetlacza
-TFT_eSPI tft = TFT_eSPI();
+ExtendedTFT_eSPI &tft = ExtendedTFT_eSPI::getInstance();
 const int WAKE_TIME = 600000; // 600 sekund w milisekundach
 unsigned long lastActivityTime = 0;
 
+int oldUpdatePercent = -1;
 void updateProgress(int current, int total) {
   // Pobieranie rozdzielczości wyświetlacza (wyświetlacz poziomo, zamienione parametry)
   int screenWidth = TFT_HEIGHT;
@@ -29,7 +31,8 @@ void updateProgress(int current, int total) {
   float progress = (float)current / total;
   int filledWidth = (int)(barWidth * progress); // Szerokość wypełnionej części paska
   int percent = (int)(progress * 100);          // Obliczenie procentów
-
+  if(percent == oldUpdatePercent)
+    return;
   // Rysowanie tła paska postępu
   tft.fillRect(barX, barY, barWidth, barHeight, TFT_DARKGREY);
 
@@ -53,6 +56,7 @@ void updateProgress(int current, int total) {
   // Wyświetl tekst
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawString(buffer, textX, textY);
+  oldUpdatePercent = percent;
 }
 
 
@@ -91,8 +95,7 @@ void update()
   OTAUpdater &updater = OTAUpdater::getInstance();
   tft.fillScreen(TFT_BLACK);
   // Ustawienie callbacku postępu (opcjonalne)
-  updater.onProgress(updateProgress);
-
+  updater.onProgress([](int current, int total){ ExtendedTFT_eSPI::getInstance().updateOTAProgress(current, total); });
   updater.beginUpdate();
 }
 
@@ -126,6 +129,7 @@ void checkSerialCommands()
 void setup()
 {
   Serial.begin(115200);
+  // init digital and analog pins
   PinManager::getInstance().begin({JOYSTICK_PIN_UP, JOYSTICK_PIN_DOWN, JOYSTICK_PIN_LEFT, JOYSTICK_PIN_RIGHT, JOYSTICK_PIN_CENTER, BUTTON_UP, BUTTON_DOWN}, {SENSOR_PIN1, SENSOR_PIN2, SENSOR_PIN3, SENSOR_PIN4, BATTERY_VOLTAGE_PIN});
   OTAUpdater::getInstance().printInfo();
   Config::getInstance().load();
@@ -218,9 +222,9 @@ void loop()
   MQTTManager::getInstance().loop();
   PinManager::getInstance().update();
 
-  if(DEBUG){
-    PinManager::getInstance().debug();
-  }
+  // if(DEBUG){
+  //   PinManager::getInstance().debug();
+  // }
 
   updateStatusBar();
   tft.setTextColor(TFT_WHITE, TFT_BLACK);

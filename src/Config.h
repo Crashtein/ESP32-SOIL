@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
+#include "wifiConfig.h"
 
 class Config
 {

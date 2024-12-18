@@ -19,14 +19,15 @@ WifiConfig::WifiConfig() {
         config.mqtt_user, 40);
     custom_mqtt_password = new WiFiManagerParameter("password", "MQTT password", 
         passwordNoChangeMask, 50);
-}
 
-void WifiConfig::setup() {
     wifiManager.setSaveConfigCallback(saveConfigCallback);
     wifiManager.addParameter(custom_mqtt_server);
     wifiManager.addParameter(custom_mqtt_port);
     wifiManager.addParameter(custom_mqtt_user);
     wifiManager.addParameter(custom_mqtt_password);
+}
+
+void WifiConfig::setup() {
 
     if (!wifiManager.autoConnect(AP_SSID)) {
         outputDebugln("Failed to connect and hit timeout");
