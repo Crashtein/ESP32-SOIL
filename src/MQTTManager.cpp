@@ -56,8 +56,13 @@ void MQTTManager::reconnect()
         outputDebug("MQTT failed, rc=");
         outputDebug(client->state());
         outputDebugln(" try again in 5 seconds");
-        delay(5000);
+        // delay(5000);
     }
+}
+
+bool MQTTManager::getStatus()
+{
+    return (client->connected());
 }
 
 void MQTTManager::loop()

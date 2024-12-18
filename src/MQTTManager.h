@@ -11,6 +11,7 @@ public:
     static MQTTManager &getInstance();
     void setup();
     void loop();
+    bool getStatus();
     PubSubClient *getClient() { return client; }
 
 private:

@@ -66,3 +66,7 @@ void WifiConfig::reset() {
     Config::getInstance().reset();
     ESP.restart();
 }
+
+bool WifiConfig::getStatus() {
+    return (WiFi.status() == WL_CONNECTED);
+}

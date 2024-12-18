@@ -10,6 +10,7 @@ public:
     void setup();
     void startPortal();
     void reset();
+    bool getStatus();
 
 private:
     WifiConfig();
