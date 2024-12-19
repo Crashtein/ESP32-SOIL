@@ -3,6 +3,9 @@
 
 #include <TFT_eSPI.h> // Biblioteka TFT_eSPI
 #include "Debug.h"
+#include "DHT22Reader.h"
+#include "wifiConfig.h"
+#include "MQTTManager.h"
 
 class ExtendedTFT_eSPI : public TFT_eSPI
 {
@@ -11,6 +14,8 @@ public:
     static ExtendedTFT_eSPI &getInstance();
 
     void init();
+
+    void initDefault();
 
     void setRotation(int rotation=0);
 
@@ -29,15 +34,14 @@ public:
     //funkcja do callbacku OTA update
     void updateOTAProgress(int current, int total);
 
-    //zwraca szerokość uwzględniając orientację
-    int owidth() { return (rotation % 2 == 1) ? width() : height(); }
-    //zwraca wysokość uwzględniając orientację
-    int oheight() { return (rotation % 2 == 1) ? height() : width(); }
+    //wyświetla na ekranie wersję i datę kompilacji
+    void printVersionInfo();
+
+    //funkcja do rysowania status baru
+    // void drawStatusBar();
 
 private:
     int oldCurrentOTAProgress = -1;
-    int tftWidth;
-    int tftHeight;
 
     TFT_eSprite *sprite; // Pole do obsługi sprita
     // Prywatny konstruktor i destruktor
