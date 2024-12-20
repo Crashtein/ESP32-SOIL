@@ -6,6 +6,7 @@
 #include "DHT22Reader.h"
 #include "wifiConfig.h"
 #include "MQTTManager.h"
+#include "WiFiManager.h"
 
 class ExtendedTFT_eSPI : public TFT_eSPI
 {
@@ -17,11 +18,11 @@ public:
 
     void initDefault();
 
-    void setRotation(int rotation=0);
+    void setRotation(int rotation = 0);
 
     // Metody związane ze spritem
     void startDrawingToSprite();
-    void pushSpriteToScreen(int x=0, int y=0);
+    void pushSpriteToScreen(int x = 0, int y = 0);
     void endSprite();
 
     // Przykład metody do rysowania do sprita
@@ -31,14 +32,17 @@ public:
     ExtendedTFT_eSPI(const ExtendedTFT_eSPI &) = delete;
     ExtendedTFT_eSPI &operator=(const ExtendedTFT_eSPI &) = delete;
 
-    //funkcja do callbacku OTA update
-    void updateOTAProgress(int current, int total);
+    // funkcja do callbacku OTA update
+    void updateOTAProgressCallback(int current, int total);
 
-    //wyświetla na ekranie wersję i datę kompilacji
+    // wyświetla na ekranie wersję i datę kompilacji
     void printVersionInfo();
 
-    //funkcja do rysowania status baru
-    // void drawStatusBar();
+    // funkcja do rysowania status baru
+    //  void drawStatusBar();
+
+    // callback dla ustawionego AP przez WIFI
+    void wifiAPcallback(WiFiManager *wm);
 
 private:
     int oldCurrentOTAProgress = -1;

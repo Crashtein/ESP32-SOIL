@@ -1,7 +1,14 @@
 #pragma once
+#ifndef AP_SSID
+#define AP_SSID ESP32
+#endif
+#ifndef AP_PASSWORD
+#define AP_PASSWORD NULL
+#endif
 
 #include <WiFiManager.h>
 #include "Config.h"
+
 
 class WifiConfig
 {
@@ -11,6 +18,7 @@ public:
     void startPortal();
     void reset();
     bool getStatus();
+    void setAPCallback(void APcallback(WiFiManager *));
 
 private:
     WifiConfig();

@@ -55,7 +55,7 @@ void ExtendedTFT_eSPI::startDrawingToSprite()
 {
     if (!sprite)
     {
-        sprite = new TFT_eSprite(this);          // Powiąż sprite z bieżącym wyświetlaczem
+        sprite = new TFT_eSprite(this); // Powiąż sprite z bieżącym wyświetlaczem
         sprite->setColorDepth(8);
         if (sprite->createSprite(width(), height()) == nullptr)
             Serial.println("Error: sprite not created, not enough free RAM!");
@@ -102,7 +102,7 @@ void ExtendedTFT_eSPI::drawTextInSprite(const char *text, int x, int y, uint8_t 
     }
 }
 
-void ExtendedTFT_eSPI::updateOTAProgress(int current, int total)
+void ExtendedTFT_eSPI::updateOTAProgressCallback(int current, int total)
 {
     printMemoryStatus();
     int screenWidth = width();
@@ -148,7 +148,8 @@ void ExtendedTFT_eSPI::updateOTAProgress(int current, int total)
     oldCurrentOTAProgress = percent;
 }
 
-void ExtendedTFT_eSPI::printVersionInfo(){
+void ExtendedTFT_eSPI::printVersionInfo()
+{
     startDrawingToSprite();
     sprite->setTextSize(2);
     sprite->setCursor(0, 8);
@@ -156,4 +157,25 @@ void ExtendedTFT_eSPI::printVersionInfo(){
     sprite->setCursor(0, 40);
     sprite->printf("Compilation date:\n%s\n%s\n", __DATE__, __TIME__);
     pushSpriteToScreen();
+}
+
+void ExtendedTFT_eSPI::wifiAPcallback(WiFiManager *wm)
+{
+    fillScreen(TFT_BLACK);
+    setTextSize(2);
+    setCursor(0, 0);
+    setTextColor(TFT_WHITE, TFT_BLACK);
+    println("Configuration mode");
+    setTextColor(TFT_WHITE, TFT_BLACK);
+    print("Connect to WiFi:\n");
+    setTextColor(TFT_YELLOW, TFT_BLACK);
+    printf("%s\n", wm->getConfigPortalSSID());
+    if (AP_PASSWORD)
+    {
+        printf("%s\n", AP_PASSWORD);
+    }
+    setTextColor(TFT_WHITE, TFT_BLACK);
+    println("Pass in browser:");
+    setTextColor(TFT_YELLOW, TFT_BLACK);
+    printf("http://%s\n", WiFi.softAPIP().toString());
 }

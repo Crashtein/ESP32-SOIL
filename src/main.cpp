@@ -33,7 +33,7 @@ void goToSleep()
 void update()
 {
   OTAUpdater::getInstance().onProgress([](int current, int total)
-                                       { ExtendedTFT_eSPI::getInstance().updateOTAProgress(current, total); });
+                                       { ExtendedTFT_eSPI::getInstance().updateOTAProgressCallback(current, total); });
   OTAUpdater::getInstance().beginUpdate();
 }
 
@@ -81,6 +81,8 @@ void setup()
   tft->setCursor(0, 40);
   tft->printf("Compilation date:\n%s\n%s\n", __DATE__, __TIME__);
 
+  WifiConfig::getInstance().setAPCallback([](WiFiManager *wm)
+                                          { ExtendedTFT_eSPI::getInstance().wifiAPcallback(wm); });
   if (digitalRead(BUTTON_UP) == LOW && digitalRead(JOYSTICK_PIN_DOWN) == HIGH)
   {
     WifiConfig::getInstance().startPortal();

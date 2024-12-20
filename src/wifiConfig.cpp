@@ -27,14 +27,19 @@ WifiConfig::WifiConfig() {
     wifiManager.addParameter(custom_mqtt_password);
 }
 
+void WifiConfig::setAPCallback(void APcallback(WiFiManager *))
+{
+    wifiManager.setAPCallback(APcallback);
+}
+
 void WifiConfig::setup() {
 
-    if (!wifiManager.autoConnect(AP_SSID)) {
+    if (!wifiManager.autoConnect(AP_SSID,AP_PASSWORD))
+    {
         outputDebugln("Failed to connect and hit timeout");
-        delay(3000);
+        delay(1000);
         ESP.restart();
     }
-    
 }
 
 void WifiConfig::saveConfigCallback() {
@@ -57,7 +62,7 @@ void WifiConfig::saveConfigCallback() {
 }
 
 void WifiConfig::startPortal() {
-    wifiManager.startConfigPortal(AP_SSID);
+    wifiManager.startConfigPortal(AP_SSID, AP_PASSWORD);
     outputDebugln("Reconfiguration completed restarting");
     ESP.restart();
 }
