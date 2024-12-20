@@ -58,6 +58,7 @@ public:
 
 private:
     int oldCurrentOTAProgress = -1;
+    float oldBatteryVoltage=4;
 
     TFT_eSprite *sprite; // Pole do obsługi sprita
     // Prywatny konstruktor i destruktor

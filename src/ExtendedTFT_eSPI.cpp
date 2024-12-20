@@ -201,6 +201,9 @@ void ExtendedTFT_eSPI::drawStatusBar()
     print("|");
     setCursor(206, 0);
     float batteryVoltage = BATTERY_VOLTAGE_CORRECTION * 2.0f * (analogRead(BATTERY_VOLTAGE_PIN) * 3.3f) / 4095.0f;
+    //smooth battery voltage readings
+    batteryVoltage = (4 * oldBatteryVoltage + batteryVoltage) / 5;
+    oldBatteryVoltage = batteryVoltage;
     if (batteryVoltage > 4.2)
     {
         setTextColor(TFT_BLUE, TFT_BLACK);
