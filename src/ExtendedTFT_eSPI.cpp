@@ -1,13 +1,5 @@
 #include "ExtendedTFT_eSPI.h"
 
-#include <esp_heap_caps.h>
-
-void printMemoryStatus()
-{
-    Serial.printf("Free Heap: %u bytes\n", esp_get_free_heap_size());
-    Serial.printf("Free PSRAM: %u bytes\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-}
-
 ExtendedTFT_eSPI &ExtendedTFT_eSPI::getInstance()
 {
     static ExtendedTFT_eSPI instance;
@@ -104,7 +96,6 @@ void ExtendedTFT_eSPI::drawTextInSprite(const char *text, int x, int y, uint8_t 
 
 void ExtendedTFT_eSPI::updateOTAProgressCallback(int current, int total)
 {
-    printMemoryStatus();
     int screenWidth = width();
     int screenHeight = height();
 
@@ -120,31 +111,28 @@ void ExtendedTFT_eSPI::updateOTAProgressCallback(int current, int total)
     int percent = (int)(progress * 100);          // Obliczenie procentów
     if (percent == oldCurrentOTAProgress)
         return; // do not update when percentage did not change
-    outputDebugln("DEBUG 1");
-    startDrawingToSprite();
-    outputDebugln("DEBUG 2");
-    // Rysowanie tła paska postępu
-    sprite->fillRect(barX, barY, barWidth, barHeight, TFT_DARKGREY);
-    outputDebugln("DEBUG 3");
+    if(oldCurrentOTAProgress==-1){
+        fillScreen(TFT_BLACK);
+        // Rysowanie tła paska postępu
+        fillRect(barX, barY, barWidth, barHeight, TFT_DARKGREY);
+        // Rysowanie ramki wokół paska
+        drawRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2, TFT_WHITE);
+    }
+        
+    // startDrawingToSprite();
     // Rysowanie wypełnionej części paska postępu
-    sprite->fillRect(barX, barY, filledWidth, barHeight, TFT_GREEN);
-    outputDebugln("DEBUG 4");
-    // Rysowanie ramki wokół paska
-    sprite->drawRect(barX, barY, barWidth, barHeight, TFT_WHITE);
-    outputDebugln("DEBUG 5");
+    fillRect(barX, barY, filledWidth, barHeight, TFT_GREEN);
     // Wyświetlanie tekstu z procentami
     char buffer[15];
     snprintf(buffer, sizeof(buffer), "Updating %d%%", percent);
-    printMemoryStatus();
     // Pozycja tekstu poniżej paska postępu
+    setTextSize(2);
     int textX = (screenWidth - textWidth(buffer)) / 2; // Centrowanie tekstu
     int textY = barY + barHeight + 10;                 // 10 pikseli poniżej paska
-    outputDebugln("DEBUG 6");
-    printMemoryStatus();
     // Wyświetl tekst - UWAGA - z jakiegoś powodu robi CORE PANIC
-    // drawTextInSprite(buffer, textX, textY, 2);
+    drawString(buffer, textX, textY, 2);
     outputDebugf("Updating %d%%\n", percent);
-    pushSpriteToScreen();
+    // pushSpriteToScreen();
     oldCurrentOTAProgress = percent;
 }
 

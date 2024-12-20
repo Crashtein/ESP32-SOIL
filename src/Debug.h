@@ -1,4 +1,6 @@
-#pragma once
+#pragma once // Używanie pragma once zamiast #ifndef
+#ifndef DEBUG_H
+#define DEBUG_H
 
 #if DEBUG == 1
 #define outputDebug(x) Serial.print(x)
@@ -8,4 +10,11 @@
 #define outputDebug(x)
 #define outputDebugln(x)
 #define outputDebugf(...)
+#endif
+
+#include <esp_heap_caps.h>
+#include "Arduino.h"
+
+void printMemoryStatus();
+
 #endif
