@@ -1,5 +1,7 @@
 #include "DHT22Reader.h"
-
+#ifndef DHT_TEMP_CORRECTION
+#define DHT_TEMP_CORRECTION 0
+#endif
 DHT22Reader *DHT22Reader::instance = nullptr; // Inicjalizacja statycznego wskaźnika Singletona
 
 // Prywatny konstruktor
@@ -28,7 +30,7 @@ void DHT22Reader::readFromSensor()
     if (!isnan(newHumidity) && !isnan(newTemperature))
     { // Sprawdź poprawność odczytów
         humidity = newHumidity;
-        temperature = newTemperature;
+        temperature = newTemperature+(DHT_TEMP_CORRECTION);
         lastReadTime = millis();
     }
 }

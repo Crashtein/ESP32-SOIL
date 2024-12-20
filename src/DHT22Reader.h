@@ -3,10 +3,15 @@
 
 #include <Arduino.h>
 #include "DHT.h" // Biblioteka do obsługi DHT22
-
+#ifndef DHT_PIN
 #define DHT_PIN 33
+#endif
+#ifndef DHT_TYPE
 #define DHT_TYPE DHT22
+#endif
+#ifndef DHT_MIN_INTERVAL
 #define DHT_MIN_INTERVAL 2000
+#endif
 
 class DHT22Reader
 {
