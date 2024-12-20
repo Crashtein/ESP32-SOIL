@@ -18,7 +18,7 @@ jobs:
     outputs:
       new_tag: ${{ steps.create_tag.outputs.new_tag }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
       
@@ -60,12 +60,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4.2.2
       with:
         fetch-depth: 0
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5.3.0
       with:
         python-version: '3.x'
 
@@ -75,7 +75,7 @@ jobs:
         pip install platformio
 
     - name: Cache PlatformIO
-      uses: actions/cache@v3
+      uses: actions/cache@v4.2.0
       with:
         path: ~/.platformio
         key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
@@ -95,7 +95,7 @@ jobs:
         PROJECT_VERSION: ${{ needs.version.outputs.new_tag || github.ref_name }}
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v4.5.0
       with:
         name: firmware
         path: .pio/build/release/firmware.bin
@@ -107,17 +107,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4.2.2
 
     - name: Download build artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.8
       with:
         name: firmware
         path: ./release
 
     - name: Create GitHub Release
       id: create-release
-      uses: actions/create-release@v1
+      uses: actions/create-release@v1.1.4
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -130,7 +130,7 @@ jobs:
         prerelease: false
 
     - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
+      uses: actions/upload-release-asset@v1.0.2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
