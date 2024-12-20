@@ -39,10 +39,22 @@ public:
     void printVersionInfo();
 
     // funkcja do rysowania status baru
-    //  void drawStatusBar();
+    void drawStatusBar();
 
     // callback dla ustawionego AP przez WIFI
     void wifiAPcallback(WiFiManager *wm);
+
+    // wyczyść ekran
+    void clear() { fillScreen(TFT_BLACK); }
+
+    // wyświetl informacje o wersji programu
+    void printProgramInfo();
+
+    // wyświetl informacje przed przejściem w stan uśpienia
+    void printSleepInfo();
+
+    // wyłącza wyświetlacz
+    void turnOff() { digitalWrite(TFT_BL, LOW); }
 
 private:
     int oldCurrentOTAProgress = -1;

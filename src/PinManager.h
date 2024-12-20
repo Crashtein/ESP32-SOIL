@@ -40,6 +40,9 @@ public:
     // Funkcja do wypisania debugowych informacji o pinach
     void debug();
 
+    // Funkcja zwracająca czas ostatniej zmiany na jakimkolwiek przycisku
+    unsigned long getLastActivityTime() { return lastActivityTime; }
+
 private:
     // Konstruktor prywatny
     PinManager();
@@ -50,6 +53,9 @@ private:
     // Zapewnia, że nie będzie duplikatów instancji (wyłączamy kopię konstruktora i operator przypisania)
     PinManager(const PinManager &) = delete;
     PinManager &operator=(const PinManager &) = delete;
+
+    //last activity time (changes in any pin)
+    unsigned long lastActivityTime = 0;
 };
 
 #endif // PIN_MANAGER_H

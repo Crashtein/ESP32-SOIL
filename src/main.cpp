@@ -8,33 +8,20 @@
 #include "PinManager.h"
 #include "ExtendedTFT_eSPI.h"
 #include <SPI.h>
+
 ExtendedTFT_eSPI *tft = nullptr;
-// ExtendedTFT_eSPI &tft = ExtendedTFT_eSPI::getInstance();
-const int WAKE_TIME = 600000; // 600 sekund w milisekundach
-unsigned long lastActivityTime = 0;
 
 void goToSleep()
 {
   Serial.println("Przechodzę w stan uśpienia...");
-  tft->fillScreen(TFT_BLACK);
-  tft->setTextSize(4);
-  tft->setCursor(0, 50);
-  tft->println("SLEEP MODE");
-  delay(1000); // Daj czas na wysłanie komunikatu przez Serial
-  // Wyłączanie wyświetlacza (jeśli sterowany osobnym pinem)
-  pinMode(4, OUTPUT); // Dostosuj pin do swojej płytki
-  digitalWrite(4, LOW);
+  tft->printSleepInfo();
+  delay(1000);
+  // Wyłączanie wyświetlacza
+  tft->turnOff();
   // Konfiguracja pinu przycisku jako źródła wybudzenia
   esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_UP, LOW); // LOW - wybudzenie przy niskim stanie
   // Przejście w deep sleep
   esp_deep_sleep_start();
-}
-
-void update()
-{
-  OTAUpdater::getInstance().onProgress([](int current, int total)
-                                       { ExtendedTFT_eSPI::getInstance().updateOTAProgressCallback(current, total); });
-  OTAUpdater::getInstance().beginUpdate();
 }
 
 void checkSerialCommands()
@@ -53,13 +40,13 @@ void checkSerialCommands()
     {
       WifiConfig::getInstance().startPortal();
     }
-    else if ("update")
+    else if (command.equals("update"))
     {
-      update();
+      OTAUpdater::getInstance().beginUpdate();
     }
     else
     {
-      outputDebugln("Undefined command");
+      Serial.println("Undefined command");
     }
   }
 }
@@ -74,12 +61,7 @@ void setup()
   tft = &ExtendedTFT_eSPI::getInstance();
   tft->initDefault();
 
-  // tft->printVersionInfo();
-  tft->setTextSize(2);
-  tft->setCursor(0, 8);
-  tft->printf("Version:\n%s\n", PROJECT_VERSION);
-  tft->setCursor(0, 40);
-  tft->printf("Compilation date:\n%s\n%s\n", __DATE__, __TIME__);
+  tft->printProgramInfo();
 
   WifiConfig::getInstance().setAPCallback([](WiFiManager *wm)
                                           { ExtendedTFT_eSPI::getInstance().wifiAPcallback(wm); });
@@ -89,9 +71,12 @@ void setup()
   }
 
   WifiConfig::getInstance().setup();
+
+  OTAUpdater::getInstance().onProgress([](int current, int total)
+                                       { ExtendedTFT_eSPI::getInstance().updateOTAProgressCallback(current, total); });
   if (digitalRead(BUTTON_UP) == LOW && digitalRead(JOYSTICK_PIN_UP) == HIGH)
   {
-    update();
+    OTAUpdater::getInstance().beginUpdate();
   }
   MQTTManager::getInstance().setup();
 
@@ -101,76 +86,25 @@ void setup()
   {
     Serial.println("Wybudzono przyciskiem");
   }
-  // Zainicjuj czas ostatniej aktywności
-  lastActivityTime = millis();
-  tft->fillScreen(TFT_BLACK);
-}
-
-void updateStatusBar()
-{
-  tft->setTextSize(1);
-  tft->setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft->setCursor(0, 0);
-  tft->printf("H:%3.1f%% T:%3.1f÷C", DHT22Reader::getInstance()->getHumidity(), DHT22Reader::getInstance()->getTemperature());
-  tft->setCursor(145, 0);
-
-  if (WifiConfig::getInstance().getStatus())
-  {
-    tft->setTextColor(TFT_GREEN, TFT_BLACK);
-  }
-  else
-  {
-    tft->setTextColor(TFT_RED, TFT_BLACK);
-  }
-  tft->print("WiFi");
-  tft->setTextColor(TFT_WHITE, TFT_BLACK);
-  tft->print("|");
-  if (MQTTManager::getInstance().getStatus())
-  {
-    tft->setTextColor(TFT_GREEN, TFT_BLACK);
-  }
-  else
-  {
-    tft->setTextColor(TFT_RED, TFT_BLACK);
-  }
-  tft->print("MQTT");
-  tft->setTextColor(TFT_WHITE, TFT_BLACK);
-  tft->print("|");
-  tft->setCursor(206, 0);
-  float batteryVoltage = 1.122 * 2.0 * analogRead(BATTERY_VOLTAGE_PIN) * 3.3 / 4095.0;
-  if (batteryVoltage > 4.2)
-  {
-    tft->setTextColor(TFT_BLUE, TFT_BLACK);
-  }
-  else if (batteryVoltage > 3.7)
-  {
-    tft->setTextColor(TFT_GREEN, TFT_BLACK);
-  }
-  else if (batteryVoltage > 3.4)
-  {
-    tft->setTextColor(TFT_YELLOW, TFT_BLACK);
-  }
-  else
-  {
-    tft->setTextColor(TFT_RED, TFT_BLACK);
-  }
-  tft->printf("%3.2fV", batteryVoltage);
+  tft->clear();
 }
 
 void loop()
 {
   checkSerialCommands();
-  // MQTTManager::getInstance().loop();
+  MQTTManager::getInstance().loop();
   PinManager::getInstance().update();
+
+  // Sprawdź czy miną zdefiniowany czas od ostatniej aktywności
+  if (millis() - PinManager::getInstance().getLastActivityTime() > SLEEP_TIME)
+    goToSleep();
 
   // if(DEBUG){
   //   PinManager::getInstance().debug();
   // }
 
-  // tft->startDrawingToSprite();
-  // tft->drawStatusBar();
-  // tft->pushSpriteToScreen(0,0);
-  updateStatusBar();
+  tft->drawStatusBar();
+
   tft->setTextColor(TFT_WHITE, TFT_BLACK);
   tft->setTextSize(2);
   tft->setCursor(0, 8);
@@ -182,17 +116,5 @@ void loop()
   tft->setCursor(0, 56);
   tft->printf("Sensor #4: %d   \n", analogRead(SENSOR_PIN4));
 
-  // Sprawdź czy jakiś przycisk zmienił stan
-  if (PinManager::getInstance().anyDigitalStateChanged())
-  {
-    outputDebugln("Some buttons changed its state, resetting sleep timer");
-    lastActivityTime = millis();
-  }
-
-  // Sprawdź czy minęło 60 sekund od ostatniej aktywności
-  if (millis() - lastActivityTime > WAKE_TIME)
-  {
-    goToSleep();
-  }
   delay(200);
 }

@@ -1,4 +1,7 @@
 #include "ExtendedTFT_eSPI.h"
+#ifndef BATTERY_VOLTAGE_CORRECTION
+#define BATTERY_VOLTAGE_CORRECTION 1.0f
+#endif
 
 ExtendedTFT_eSPI &ExtendedTFT_eSPI::getInstance()
 {
@@ -34,7 +37,6 @@ void ExtendedTFT_eSPI::initDefault()
     fillScreen(TFT_BLACK);
     setTextColor(TFT_WHITE, TFT_BLACK);
     setTextSize(1);
-    startDrawingToSprite();
 }
 
 void ExtendedTFT_eSPI::setRotation(int rotation)
@@ -111,15 +113,15 @@ void ExtendedTFT_eSPI::updateOTAProgressCallback(int current, int total)
     int percent = (int)(progress * 100);          // Obliczenie procentów
     if (percent == oldCurrentOTAProgress)
         return; // do not update when percentage did not change
-    if(oldCurrentOTAProgress==-1){
+    if (oldCurrentOTAProgress == -1)
+    {
         fillScreen(TFT_BLACK);
         // Rysowanie tła paska postępu
         fillRect(barX, barY, barWidth, barHeight, TFT_DARKGREY);
         // Rysowanie ramki wokół paska
         drawRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2, TFT_WHITE);
     }
-        
-    // startDrawingToSprite();
+
     // Rysowanie wypełnionej części paska postępu
     fillRect(barX, barY, filledWidth, barHeight, TFT_GREEN);
     // Wyświetlanie tekstu z procentami
@@ -132,7 +134,6 @@ void ExtendedTFT_eSPI::updateOTAProgressCallback(int current, int total)
     // Wyświetl tekst - UWAGA - z jakiegoś powodu robi CORE PANIC
     drawString(buffer, textX, textY, 2);
     outputDebugf("Updating %d%%\n", percent);
-    // pushSpriteToScreen();
     oldCurrentOTAProgress = percent;
 }
 
@@ -166,4 +167,70 @@ void ExtendedTFT_eSPI::wifiAPcallback(WiFiManager *wm)
     println("Pass in browser:");
     setTextColor(TFT_YELLOW, TFT_BLACK);
     printf("http://%s\n", WiFi.softAPIP().toString());
+}
+
+void ExtendedTFT_eSPI::drawStatusBar()
+{
+    setTextSize(1);
+    setTextColor(TFT_YELLOW, TFT_BLACK);
+    setCursor(0, 0);
+    printf("H:%3.1f%% T:%3.1f÷C", DHT22Reader::getInstance()->getHumidity(), DHT22Reader::getInstance()->getTemperature());
+    setCursor(145, 0);
+
+    if (WifiConfig::getInstance().getStatus())
+    {
+        setTextColor(TFT_GREEN, TFT_BLACK);
+    }
+    else
+    {
+        setTextColor(TFT_RED, TFT_BLACK);
+    }
+    print("WiFi");
+    setTextColor(TFT_WHITE, TFT_BLACK);
+    print("|");
+    if (MQTTManager::getInstance().getStatus())
+    {
+        setTextColor(TFT_GREEN, TFT_BLACK);
+    }
+    else
+    {
+        setTextColor(TFT_RED, TFT_BLACK);
+    }
+    print("MQTT");
+    setTextColor(TFT_WHITE, TFT_BLACK);
+    print("|");
+    setCursor(206, 0);
+    float batteryVoltage = BATTERY_VOLTAGE_CORRECTION * 2.0f * (analogRead(BATTERY_VOLTAGE_PIN) * 3.3f) / 4095.0f;
+    if (batteryVoltage > 4.2)
+    {
+        setTextColor(TFT_BLUE, TFT_BLACK);
+    }
+    else if (batteryVoltage > 3.7)
+    {
+        setTextColor(TFT_GREEN, TFT_BLACK);
+    }
+    else if (batteryVoltage > 3.4)
+    {
+        setTextColor(TFT_YELLOW, TFT_BLACK);
+    }
+    else
+    {
+        setTextColor(TFT_RED, TFT_BLACK);
+    }
+    printf("%3.2fV", batteryVoltage);
+}
+
+void ExtendedTFT_eSPI::printProgramInfo(){
+    setTextSize(2);
+    setCursor(0, 8);
+    printf("Version:\n%s\n", PROJECT_VERSION);
+    setCursor(0, 40);
+    printf("Compilation date:\n%s\n%s\n", __DATE__, __TIME__);
+}
+
+void ExtendedTFT_eSPI::printSleepInfo(){
+    clear();
+    setTextSize(4);
+    setCursor(0, 50);
+    println("SLEEP MODE");
 }

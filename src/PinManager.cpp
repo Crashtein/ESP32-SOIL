@@ -3,6 +3,7 @@
 PinManager::PinManager()
 {
     // Konstruktor domyślny (pusty, brak pinów na starcie)
+    lastActivityTime = millis();
 }
 
 PinManager &PinManager::getInstance()
@@ -53,6 +54,8 @@ void PinManager::update()
             pinState.stateChanged = false;
         }
     }
+    if(anyDigitalStateChanged())
+        lastActivityTime = millis();
 }
 
 bool PinManager::readDigitalPin(uint8_t pin)
