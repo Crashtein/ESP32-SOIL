@@ -237,3 +237,12 @@ void ExtendedTFT_eSPI::printSleepInfo(){
     setCursor(0, 50);
     println("SLEEP MODE");
 }
+
+void ExtendedTFT_eSPI::showMenuOption(const char *itemName){
+    clear();
+    drawStatusBar();
+    setTextColor(TFT_GREEN,TFT_BLACK);
+    setTextSize(2);
+    setCursor((width()-textWidth(itemName))/2, height()/2);
+    print(itemName);
+}

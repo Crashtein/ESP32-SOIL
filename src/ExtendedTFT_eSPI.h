@@ -56,6 +56,9 @@ public:
     // wyłącza wyświetlacz
     void turnOff() { digitalWrite(TFT_BL, LOW); }
 
+    // show menu option
+    void showMenuOption(const char *itemName);
+
 private:
     int oldCurrentOTAProgress = -1;
     float oldBatteryVoltage=4;

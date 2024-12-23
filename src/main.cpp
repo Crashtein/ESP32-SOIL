@@ -8,6 +8,7 @@
 #include "PinManager.h"
 #include "ExtendedTFT_eSPI.h"
 #include <SPI.h>
+#include "MenuManager.h"
 
 ExtendedTFT_eSPI *tft = nullptr;
 
@@ -51,6 +52,70 @@ void checkSerialCommands()
   }
 }
 
+// Callbacki testowe
+void onOptionSelected() {
+    Serial.println("Option selected!");
+}
+
+void onNavigate(const std::string& itemName) {
+    Serial.printf("Navigated to: %s\n",itemName.c_str());
+}
+MenuManager *menu = nullptr;
+void buildMenu(){
+  menu = &MenuManager::getInstance();
+
+  // Tworzenie menu
+  auto sensorsMenu = std::make_shared<MenuItem>("Sensors", onOptionSelected, onNavigate);
+  auto optionsMenu = std::make_shared<MenuItem>("Menu", onOptionSelected, onNavigate);
+
+  auto sensor1SubMenu = std::make_shared<MenuItem>("Sensor 1", onOptionSelected, onNavigate);
+  auto sensor2SubMenu = std::make_shared<MenuItem>("Sensor 2", onOptionSelected, onNavigate);
+  auto sensor3SubMenu = std::make_shared<MenuItem>("Sensor 3", onOptionSelected, onNavigate);
+  auto sensor4SubMenu = std::make_shared<MenuItem>("Sensor 4", onOptionSelected, onNavigate);
+
+  auto reconfigureSubMenu = std::make_shared<MenuItem>("Reconfigure", []()
+                                       { WifiConfig::getInstance().startPortal(); },  [](const char *itemName)
+                                       { ExtendedTFT_eSPI::getInstance().showMenuOption(itemName); });
+  auto updateSubMenu = std::make_shared<MenuItem>("Update",  []()
+                                       { OTAUpdater::getInstance().beginUpdate(); }, [](const char *itemName)
+                                       { ExtendedTFT_eSPI::getInstance().showMenuOption(itemName); });
+
+  // Tworzenie podmenu
+  sensorsMenu->subMenu.push_back(sensor1SubMenu);
+  sensorsMenu->subMenu.push_back(sensor2SubMenu);
+  sensorsMenu->subMenu.push_back(sensor3SubMenu);
+  sensorsMenu->subMenu.push_back(sensor4SubMenu);
+  optionsMenu->subMenu.push_back(reconfigureSubMenu);
+  optionsMenu->subMenu.push_back(updateSubMenu);
+
+  menu->setMainMenu({sensorsMenu,optionsMenu});
+  menu->navigateInto();
+}
+
+void navigationOnMenu(){
+  auto *pinManager = &PinManager::getInstance();
+  if(pinManager->readDigitalPin(JOYSTICK_PIN_CENTER) && pinManager->digitalStateChanged(JOYSTICK_PIN_CENTER)){
+    menu->selectCurrent();
+  }
+  if(pinManager->readDigitalPin(JOYSTICK_PIN_DOWN) && pinManager->digitalStateChanged(JOYSTICK_PIN_DOWN)){
+    menu->navigateNext();
+  }
+  if(pinManager->readDigitalPin(JOYSTICK_PIN_UP) && pinManager->digitalStateChanged(JOYSTICK_PIN_UP)){
+    menu->navigatePrevious();
+  }
+  if(!pinManager->readDigitalPin(BUTTON_DOWN) && pinManager->digitalStateChanged(BUTTON_DOWN)){
+    menu->navigateBack();
+    menu->navigateNext();
+    menu->navigateInto();
+  }
+  if(!pinManager->readDigitalPin(BUTTON_UP) && pinManager->digitalStateChanged(BUTTON_UP)){
+    menu->navigateBack();
+    menu->navigatePrevious();
+    menu->navigateInto();
+  }
+  return;
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -86,6 +151,7 @@ void setup()
   {
     Serial.println("Wybudzono przyciskiem");
   }
+  buildMenu();
   tft->clear();
 }
 
@@ -99,12 +165,11 @@ void loop()
   if (millis() - PinManager::getInstance().getLastActivityTime() > SLEEP_TIME)
     goToSleep();
 
-  // if(DEBUG){
+  // if(DEBUG && PinManager::getInstance().anyDigitalStateChanged()){
   //   PinManager::getInstance().debug();
   // }
 
   tft->drawStatusBar();
-
   tft->setTextColor(TFT_WHITE, TFT_BLACK);
   tft->setTextSize(2);
   tft->setCursor(0, 8);
@@ -115,6 +180,7 @@ void loop()
   tft->printf("Sensor #3: %d   \n", analogRead(SENSOR_PIN3));
   tft->setCursor(0, 56);
   tft->printf("Sensor #4: %d   \n", analogRead(SENSOR_PIN4));
-
+  
+  navigationOnMenu();
   delay(200);
 }
