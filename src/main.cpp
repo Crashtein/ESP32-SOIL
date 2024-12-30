@@ -83,6 +83,7 @@ void buildMenu()
                                                        { WifiConfig::getInstance().startPortal(); }, tft_showMenu);
   auto updateSubMenu = std::make_shared<MenuItem>("Update", []()
                                                   { OTAUpdater::getInstance().beginUpdate(); }, tft_showMenu);
+  auto sleepModeSubMenu = std::make_shared<MenuItem>("Force sleep", goToSleep, tft_showMenu);
   auto rfidSubMenu = std::make_shared<MenuItem>("RFID tools>>", []()
                                                 { MenuManager::getInstance().navigateInto(); }, tft_showMenu);
   auto displayRFIDTagDataSubMenu = std::make_shared<MenuItem>("Read tag data", onOptionSelected, tft_showMenu,true);
@@ -99,14 +100,15 @@ void buildMenu()
   sensorsMenu->subMenu.push_back(sensor3SubMenu);
   sensorsMenu->subMenu.push_back(sensor4SubMenu);
 
-  optionsMenu->subMenu.push_back(reconfigureSubMenu);
-  optionsMenu->subMenu.push_back(updateSubMenu);
+  optionsMenu->subMenu.push_back(sleepModeSubMenu);
   rfidSubMenu->subMenu.push_back(displayRFIDTagDataSubMenu);
   rfidSubMenu->subMenu.push_back(configureNewTagSubMenu);
   rfidSubMenu->subMenu.push_back(copyRFIDTagDataSubMenu);
   rfidSubMenu->subMenu.push_back(copyRFIDTagIDSubMenu);
   rfidSubMenu->subMenu.push_back(cloneRFIDTagSubMenu);
   optionsMenu->subMenu.push_back(rfidSubMenu);
+  optionsMenu->subMenu.push_back(updateSubMenu);
+  optionsMenu->subMenu.push_back(reconfigureSubMenu);
   optionsMenu->subMenu.push_back(resetAllConfigSubMenu);
 
   menu->setMainMenu({sensorsMenu, optionsMenu});
