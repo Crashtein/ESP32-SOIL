@@ -57,7 +57,7 @@ public:
     void turnOff() { digitalWrite(TFT_BL, LOW); }
 
     // show menu option
-    void showMenuOption(const char *itemName);
+    void showMenuOption(const int currentIndex, std::vector<String>, const std::vector<bool> checkedVector);
 
 private:
     int oldCurrentOTAProgress = -1;

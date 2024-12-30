@@ -201,7 +201,7 @@ void ExtendedTFT_eSPI::drawStatusBar()
     print("|");
     setCursor(206, 0);
     float batteryVoltage = BATTERY_VOLTAGE_CORRECTION * 2.0f * (analogRead(BATTERY_VOLTAGE_PIN) * 3.3f) / 4095.0f;
-    //smooth battery voltage readings
+    // smooth battery voltage readings
     batteryVoltage = (4 * oldBatteryVoltage + batteryVoltage) / 5;
     oldBatteryVoltage = batteryVoltage;
     if (batteryVoltage > 4.2)
@@ -223,7 +223,8 @@ void ExtendedTFT_eSPI::drawStatusBar()
     printf("%3.2fV", batteryVoltage);
 }
 
-void ExtendedTFT_eSPI::printProgramInfo(){
+void ExtendedTFT_eSPI::printProgramInfo()
+{
     setTextSize(2);
     setCursor(0, 8);
     printf("Version:\n%s\n", PROJECT_VERSION);
@@ -231,18 +232,59 @@ void ExtendedTFT_eSPI::printProgramInfo(){
     printf("Compilation date:\n%s\n%s\n", __DATE__, __TIME__);
 }
 
-void ExtendedTFT_eSPI::printSleepInfo(){
+void ExtendedTFT_eSPI::printSleepInfo()
+{
     clear();
     setTextSize(4);
     setCursor(0, 50);
     println("SLEEP MODE");
 }
 
-void ExtendedTFT_eSPI::showMenuOption(const char *itemName){
-    clear();
-    drawStatusBar();
-    setTextColor(TFT_GREEN,TFT_BLACK);
-    setTextSize(2);
-    setCursor((width()-textWidth(itemName))/2, height()/2);
-    print(itemName);
+void ExtendedTFT_eSPI::showMenuOption(const int currentIndex, const std::vector<String> currentMenuNames, const std::vector<bool> checkedVector)
+{
+    clear(); // Clear the screen
+    drawStatusBar(); // Draw the status bar
+
+    const int skippedPixelsOnTop = 8;
+    const int textSize = 2;
+
+    setTextSize(textSize); // Set text size
+
+    int lineHeight = 8*textSize+2; // Height of each line (adjust as needed)
+    int screenHeight = height()-skippedPixelsOnTop; // Get the height of the screen
+    int maxLines = screenHeight / lineHeight; // Calculate the maximum number of lines that can fit on the screen
+
+    int startLine = 0; // Start line for displaying menu items
+    if (currentIndex >= maxLines-1)
+    { // Adjust start line if the selected item is beyond the screen height
+        startLine = currentIndex - maxLines + 1;
+        if(currentIndex < (currentMenuNames.size()-1)){
+            startLine++;
+        }
+    }
+
+    for (int i = startLine; i < currentMenuNames.size() && i < startLine + maxLines; ++i) {
+        int y = (i - startLine) * lineHeight + skippedPixelsOnTop; // Calculate the y position for the current line
+
+        if (i == currentIndex) {
+            if(checkedVector[i] == true){
+                setTextColor(TFT_GREEN, TFT_BLUE);
+            }else{
+                setTextColor(TFT_BLACK, TFT_WHITE);
+            } 
+        } else {
+            if (checkedVector[i] == true)
+            {
+                setTextColor(TFT_GREEN, TFT_BLACK);
+            }
+            else
+            {
+                setTextColor(TFT_WHITE, TFT_BLACK);
+            }
+        }
+
+        setCursor((width() - textWidth(currentMenuNames[i])) / 2, y); // Center the text horizontally
+        print(currentMenuNames[i]); // Print the menu item
+    }
 }
+
