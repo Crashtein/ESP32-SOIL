@@ -112,6 +112,8 @@ jobs:
       latest_upload_url: ${{ steps.create-latest-release.outputs.upload_url }}
       release_upload_url: ${{ steps.create-release.outputs.upload_url }}
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4.2.2
     - name: Check if latest release exists
       id: check-latest
       run: |
