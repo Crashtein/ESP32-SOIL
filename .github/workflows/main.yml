@@ -159,6 +159,12 @@ jobs:
           Build date: ${{ github.event.repository.updated_at }}
         draft: false
         prerelease: false
+      
+    - name: Set releases upload urls
+      id: release-upload-urls
+      run: |
+        release_upload_url=${{ steps.create-latest-release.outputs.upload_url }}
+        latest_upload_url=${{ steps.create-release.outputs.upload_url }}
 
   release:
     needs: [build, version, pre-release]
