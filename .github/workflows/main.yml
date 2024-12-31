@@ -58,6 +58,9 @@ jobs:
     needs: [version]
     if: always() && (startsWith(github.ref, 'refs/tags/') || success())
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev, release]
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4.2.2
@@ -90,15 +93,15 @@ jobs:
         sed -i 's|backData && (backLen > 0)|backData != nullptr \&\& backLen != nullptr \&\& *backLen > 0|g' .pio/libdeps/*/MFRC522/src/MFRC522Extended.cpp #fix error on MFRC522 lib to allow compilation
 
     - name: Build firmware
-      run: pio run -e release
+      run: pio run -e ${{ matrix.env }}
       env:
         PROJECT_VERSION: ${{ needs.version.outputs.new_tag || github.ref_name }}
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4.5.0
       with:
-        name: firmware
-        path: .pio/build/release/firmware.bin
+        name: firmware-${{ matrix.env }}
+        path: .pio/build/${{ matrix.env }}/firmware.bin
         if-no-files-found: error
 
   release:
@@ -112,7 +115,7 @@ jobs:
     - name: Download build artifacts
       uses: actions/download-artifact@v4.1.8
       with:
-        name: firmware
+        name: firmware-${{ matrix.env }}
         path: ./release
 
     - name: Create GitHub Release
@@ -129,14 +132,14 @@ jobs:
         draft: false
         prerelease: false
 
-    - name: Upload Release Asset
+    - name: Upload Release Assets
       uses: actions/upload-release-asset@v1.0.2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create-release.outputs.upload_url }}
-        asset_path: ./release/firmware.bin
-        asset_name: firmware-${{ needs.version.outputs.new_tag || github.ref_name }}.bin
+        asset_path: ./release/firmware-${{ matrix.env }}.bin
+        asset_name: firmware-${{ matrix.env }}-${{ needs.version.outputs.new_tag || github.ref_name }}.bin
         asset_content_type: application/octet-stream
 
     - name: Update Latest Release
@@ -145,7 +148,7 @@ jobs:
         gh release create latest \
           --title "Latest Release" \
           --notes "This is an automatically updated release containing the latest firmware build from ${{ needs.version.outputs.new_tag || github.ref_name }}" \
-          ./release/firmware.bin
+          ./release/firmware-${{ matrix.env }}.bin
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
