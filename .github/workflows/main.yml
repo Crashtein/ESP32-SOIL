@@ -3,11 +3,12 @@ permissions:
   actions: read
 
 name: Build and release
+
 on:
   push:
     branches:
       - main
-      - release/*
+      - 'release/*'
     tags:
       - 'v*'
 
@@ -18,41 +19,38 @@ jobs:
     outputs:
       new_tag: ${{ steps.create_tag.outputs.new_tag }}
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       
       - name: Get latest tag
         id: get_latest_tag
+        shell: bash
         run: |
-          # Get the latest tag, default to v0.0.0 if none exists
           latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Latest tag: $latest_tag"
-          echo "latest_tag=${latest_tag}" >> $GITHUB_OUTPUT
+          echo "latest_tag=${latest_tag}" >> "$GITHUB_OUTPUT"
 
       - name: Increment version
         id: create_tag
+        shell: bash
         run: |
-          latest_tag=${{ steps.get_latest_tag.outputs.latest_tag }}
-          # Remove 'v' prefix and split into array
+          latest_tag="${{ steps.get_latest_tag.outputs.latest_tag }}"
           IFS='.' read -ra VERSION <<< "${latest_tag#v}"
           MAJOR=${VERSION[0]:-0}
           MINOR=${VERSION[1]:-0}
           PATCH=${VERSION[2]:-0}
           
-          # Increment patch version
           PATCH=$((PATCH + 1))
-          
-          # Create new tag
           new_tag="v$MAJOR.$MINOR.$PATCH"
-          echo "New tag: $new_tag"
-          echo "new_tag=${new_tag}" >> $GITHUB_OUTPUT
           
-          # Create and push new tag
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git tag -a $new_tag -m "Release $new_tag"
-          git push origin $new_tag
+          echo "New tag: $new_tag"
+          echo "new_tag=${new_tag}" >> "$GITHUB_OUTPUT"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$new_tag" -m "Release $new_tag"
+          git push origin "$new_tag"
 
   build:
     needs: [version]
@@ -62,47 +60,51 @@ jobs:
       matrix:
         env: [dev, release]
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4.2.2
-      with:
-        fetch-depth: 0
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Set up Python
-      uses: actions/setup-python@v5.3.0
-      with:
-        python-version: '3.x'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          cache: 'pip'
 
-    - name: Install PlatformIO
-      run: |
-        python -m pip install --upgrade pip
-        pip install platformio
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
 
-    - name: Cache PlatformIO
-      uses: actions/cache@v4.2.0
-      with:
-        path: ~/.platformio
-        key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
-        restore-keys: |
-          ${{ runner.os }}-platformio-
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .pio/build
+          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', '**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-
 
-    - name: Install PlatformIO libs and configure
-      run: |
-        pio lib install
-        sed -i '/^#include <User_Setup.h>/a#include <User_Setups/Setup25_TTGO_T_Display.h>' .pio/libdeps/*/TFT_eSPI/User_Setup_Select.h
-        sed -i 's|^#include <User_Setup.h>|//#include <User_Setup.h>|' .pio/libdeps/*/TFT_eSPI/User_Setup_Select.h
-        sed -i 's|backData && (backLen > 0)|backData != nullptr \&\& backLen != nullptr \&\& *backLen > 0|g' .pio/libdeps/*/MFRC522/src/MFRC522Extended.cpp #fix error on MFRC522 lib to allow compilation
+      - name: Install PlatformIO libs and configure
+        run: |
+          pio lib install
+          sed -i '/^#include <User_Setup.h>/a#include <User_Setups/Setup25_TTGO_T_Display.h>' .pio/libdeps/*/TFT_eSPI/User_Setup_Select.h
+          sed -i 's|^#include <User_Setup.h>|//#include <User_Setup.h>|' .pio/libdeps/*/TFT_eSPI/User_Setup_Select.h
+          sed -i 's|backData && (backLen > 0)|backData != nullptr \&\& backLen != nullptr \&\& *backLen > 0|g' .pio/libdeps/*/MFRC522/src/MFRC522Extended.cpp
 
-    - name: Build firmware
-      run: pio run -e ${{ matrix.env }}
-      env:
-        PROJECT_VERSION: ${{ needs.version.outputs.new_tag || github.ref_name }}
+      - name: Build firmware
+        run: pio run -e ${{ matrix.env }}
+        env:
+          PROJECT_VERSION: ${{ needs.version.outputs.new_tag || github.ref_name }}
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4.5.0
-      with:
-        name: firmware-${{ matrix.env }}
-        path: .pio/build/${{ matrix.env }}/firmware.bin
-        if-no-files-found: error
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.env }}
+          path: .pio/build/${{ matrix.env }}/firmware.bin
+          if-no-files-found: error
+          retention-days: 5
 
   pre-release:
     needs: [build, version]
@@ -112,59 +114,55 @@ jobs:
       latest_upload_url: ${{ steps.create-latest-release.outputs.upload_url }}
       release_upload_url: ${{ steps.create-release.outputs.upload_url }}
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4.2.2
-    - name: Check if latest release exists
-      id: check-latest
-      run: |
-        if gh release view latest; then
-          echo "Latest release exists"
-          echo "exists=true" >> $GITHUB_ENV
-        else
-          echo "Latest release does not exist"
-          echo "exists=false" >> $GITHUB_ENV
-        fi
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check if latest release exists
+        id: check-latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view latest; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
 
-    - name: Delete Latest Release if exists
-      if: env.exists == 'true'
-      run: |
-        gh release delete latest --yes
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Delete Latest Release if exists
+        if: steps.check-latest.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release delete latest --yes
 
-    - name: Create Latest Release
-      id: create-latest-release
-      run: |
-        gh release create latest \
-          --title "Latest Release" \
-          --notes "This is an automatically updated release containing the latest firmware build from ${{ needs.version.outputs.new_tag || github.ref_name }}"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Latest Release
+        id: create-latest-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RESPONSE=$(gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/releases \
+            -f tag_name='latest' \
+            -f name='Latest Release' \
+            -f body="This is an automatically updated release containing the latest firmware build from ${{ needs.version.outputs.new_tag || github.ref_name }}" \
+            -f draft=false \
+            -f prerelease=false)
+          echo "upload_url=$(echo $RESPONSE | jq -r .upload_url)" >> $GITHUB_OUTPUT
 
-    - name: Create GitHub Release
-      id: create-release
-      uses: actions/create-release@v1.1.4
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ needs.version.outputs.new_tag || github.ref_name }}
-        release_name: "Release ${{ needs.version.outputs.new_tag || github.ref_name }}"
-        body: |
-          Firmware release ${{ needs.version.outputs.new_tag || github.ref_name }}
-          Build date: ${{ github.event.repository.updated_at }}
-        draft: false
-        prerelease: false
-      
-    - name: Set releases upload urls
-      id: release-upload-urls
-      run: |
-        release_upload_url=${{ steps.create-latest-release.outputs.upload_url }}
-        latest_upload_url=${{ steps.create-release.outputs.upload_url }}
+      - name: Create Release
+        id: create-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION_TAG="${{ needs.version.outputs.new_tag || github.ref_name }}"
+          RESPONSE=$(gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/releases \
+            -f tag_name="$VERSION_TAG" \
+            -f name="Release $VERSION_TAG" \
+            -f body="Firmware release $VERSION_TAG" \
+            -f draft=false \
+            -f prerelease=false)
+          echo "upload_url=$(echo $RESPONSE | jq -r .upload_url)" >> $GITHUB_OUTPUT
 
   release:
     needs: [build, version, pre-release]
@@ -174,31 +172,25 @@ jobs:
       matrix:
         env: [dev, release]
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4.2.2
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-${{ matrix.env }}
+          path: ./release/${{ matrix.env }}
 
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4.1.8
-      with:
-        name: firmware-${{ matrix.env }}
-        path: ./release/${{ matrix.env }}
+      - name: Upload Release Asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION_TAG="${{ needs.version.outputs.new_tag || github.ref_name }}"
+          gh release upload "$VERSION_TAG" "./release/${{ matrix.env }}/firmware.bin" \
+            --clobber \
+            --name "firmware-${{ matrix.env }}-${VERSION_TAG}.bin"
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1.0.2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.pre-release.outputs.release_upload_url }}
-        asset_path: ./release/${{ matrix.env }}/firmware.bin
-        asset_name: firmware-${{ matrix.env }}-${{ needs.version.outputs.new_tag || github.ref_name }}.bin
-        asset_content_type: application/octet-stream
-
-    - name: Upload Release Asset for latest release
-      uses: actions/upload-release-asset@v1.0.2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.pre-release.outputs.latest_upload_url }}
-        asset_path: ./release/${{ matrix.env }}/firmware.bin
-        asset_name: firmware-${{ matrix.env }}.bin
-        asset_content_type: application/octet-stream
+      - name: Upload Latest Release Asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload latest "./release/${{ matrix.env }}/firmware.bin" \
+            --clobber \
+            --name "firmware-${{ matrix.env }}.bin"
