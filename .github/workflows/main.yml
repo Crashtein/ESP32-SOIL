@@ -105,9 +105,6 @@ jobs:
         if-no-files-found: error
 
   release:
-    strategy:
-      matrix:
-        env: [dev, release]
     needs: [build, version]
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -118,8 +115,13 @@ jobs:
     - name: Download build artifacts
       uses: actions/download-artifact@v4.1.8
       with:
-        name: firmware-${{ matrix.env }}
-        path: ./release
+        name: firmware-dev
+        path: ./release/dev
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4.1.8
+      with:
+        name: firmware-release
+        path: ./release/release
 
     - name: Create GitHub Release
       id: create-release
@@ -141,8 +143,18 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create-release.outputs.upload_url }}
-        asset_path: ./release/firmware-${{ matrix.env }}.bin
-        asset_name: firmware-${{ matrix.env }}-${{ needs.version.outputs.new_tag || github.ref_name }}.bin
+        asset_path: ./release/dev/firmware.bin
+        asset_name: firmware-dev-${{ needs.version.outputs.new_tag || github.ref_name }}.bin
+        asset_content_type: application/octet-stream
+
+    - name: Upload Release Assets
+      uses: actions/upload-release-asset@v1.0.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create-release.outputs.upload_url }}
+        asset_path: ./release/release/firmware.bin
+        asset_name: firmware-release-${{ needs.version.outputs.new_tag || github.ref_name }}.bin
         asset_content_type: application/octet-stream
 
     - name: Update Latest Release
@@ -151,7 +163,8 @@ jobs:
         gh release create latest \
           --title "Latest Release" \
           --notes "This is an automatically updated release containing the latest firmware build from ${{ needs.version.outputs.new_tag || github.ref_name }}" \
-          ./release/firmware-${{ matrix.env }}.bin
+          ./release/dev/firmware.bin \
+          ./release/release/firmware.bin
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
