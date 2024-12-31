@@ -104,60 +104,14 @@ jobs:
         path: .pio/build/${{ matrix.env }}/firmware.bin
         if-no-files-found: error
 
-  release:
+  pre-release:
     needs: [build, version]
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    outputs:
+      latest_upload_url: ${{ steps.create-latest-release.outputs.upload_url }}
+      release_upload_url: ${{ steps.create-release.outputs.upload_url }}
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4.2.2
-
-    - name: Download build artifacts for dev
-      uses: actions/download-artifact@v4.1.8
-      with:
-        name: firmware-dev
-        path: ./release/dev
-
-    - name: Download build artifacts for release
-      uses: actions/download-artifact@v4.1.8
-      with:
-        name: firmware-release
-        path: ./release/release
-
-    - name: Create GitHub Release
-      id: create-release
-      uses: actions/create-release@v1.1.4
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ needs.version.outputs.new_tag || github.ref_name }}
-        release_name: "Release ${{ needs.version.outputs.new_tag || github.ref_name }}"
-        body: |
-          Firmware release ${{ needs.version.outputs.new_tag || github.ref_name }}
-          Build date: ${{ github.event.repository.updated_at }}
-        draft: false
-        prerelease: false
-
-    - name: Upload Release Asset for dev
-      uses: actions/upload-release-asset@v1.0.2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create-release.outputs.upload_url }}
-        asset_path: ./release/dev/firmware.bin
-        asset_name: firmware-dev-${{ needs.version.outputs.new_tag || github.ref_name }}.bin
-        asset_content_type: application/octet-stream
-
-    - name: Upload Release Asset for release
-      uses: actions/upload-release-asset@v1.0.2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create-release.outputs.upload_url }}
-        asset_path: ./release/release/firmware.bin
-        asset_name: firmware-release-${{ needs.version.outputs.new_tag || github.ref_name }}.bin
-        asset_content_type: application/octet-stream
-
     - name: Check if latest release exists
       id: check-latest
       run: |
@@ -181,12 +135,62 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create Latest Release
+      id: create-latest-release
       run: |
         gh release create latest \
           --title "Latest Release" \
-          --notes "This is an automatically updated release containing the latest firmware build from ${{ needs.version.outputs.new_tag || github.ref_name }}" \
-          ./release/dev/firmware.bin \
-          ./release/release/firmware.bin
+          --notes "This is an automatically updated release containing the latest firmware build from ${{ needs.version.outputs.new_tag || github.ref_name }}"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create GitHub Release
+      id: create-release
+      uses: actions/create-release@v1.1.4
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ needs.version.outputs.new_tag || github.ref_name }}
+        release_name: "Release ${{ needs.version.outputs.new_tag || github.ref_name }}"
+        body: |
+          Firmware release ${{ needs.version.outputs.new_tag || github.ref_name }}
+          Build date: ${{ github.event.repository.updated_at }}
+        draft: false
+        prerelease: false
+
+  release:
+    needs: [build, version, pre-release]
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev, release]
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4.2.2
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4.1.8
+      with:
+        name: firmware-${{ matrix.env }}
+        path: ./release/${{ matrix.env }}
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1.0.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.pre-release.outputs.release_upload_url }}
+        asset_path: ./release/${{ matrix.env }}/firmware.bin
+        asset_name: firmware-${{ matrix.env }}-${{ needs.version.outputs.new_tag || github.ref_name }}.bin
+        asset_content_type: application/octet-stream
+
+    - name: Upload Release Asset for latest release
+      uses: actions/upload-release-asset@v1.0.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.pre-release.outputs.latest_upload_url }}
+        asset_path: ./release/${{ matrix.env }}/firmware.bin
+        asset_name: firmware-${{ matrix.env }}.bin
+        asset_content_type: application/octet-stream
