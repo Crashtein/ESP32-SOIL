@@ -135,16 +135,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RESPONSE=$(gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            /repos/${{ github.repository }}/releases \
-            -f tag_name='latest' \
-            -f name='Latest Release' \
-            -f body="This is an automatically updated release containing the latest firmware build from ${{ needs.version.outputs.new_tag || github.ref_name }}" \
-            -f draft=false \
-            -f prerelease=false)
-          echo "upload_url=$(echo $RESPONSE | jq -r .upload_url)" >> $GITHUB_OUTPUT
+          RESPONSE=$(gh release create latest \
+            --title "Latest Release" \
+            --notes "This is an automatically updated release containing the latest firmware build from ${{ needs.version.outputs.new_tag || github.ref_name }}" \
+            --target ${{ github.sha }} \
+            --latest)
+          RELEASE_ID=$(gh api /repos/${{ github.repository }}/releases/tags/latest | jq -r .upload_url)
+          echo "upload_url=$RELEASE_ID" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create-release
@@ -152,16 +149,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION_TAG="${{ needs.version.outputs.new_tag || github.ref_name }}"
-          RESPONSE=$(gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            /repos/${{ github.repository }}/releases \
-            -f tag_name="$VERSION_TAG" \
-            -f name="Release $VERSION_TAG" \
-            -f body="Firmware release $VERSION_TAG" \
-            -f draft=false \
-            -f prerelease=false \)
-          echo "upload_url=$(echo $RESPONSE | jq -r .upload_url)" >> $GITHUB_OUTPUT
+          RESPONSE=$(gh release create "$VERSION_TAG" \
+            --title "Release $VERSION_TAG" \
+            --notes "Firmware release $VERSION_TAG" \
+            --target ${{ github.sha }})
+          RELEASE_ID=$(gh api /repos/${{ github.repository }}/releases/tags/$VERSION_TAG | jq -r .upload_url)
+          echo "upload_url=$RELEASE_ID" >> $GITHUB_OUTPUT
 
 
   release:
@@ -185,7 +178,7 @@ jobs:
           VERSION_TAG="${{ needs.version.outputs.new_tag || github.ref_name }}"
           gh release upload "$VERSION_TAG" "./release/${{ matrix.env }}/firmware.bin" \
             --clobber \
-            --name "firmware-${{ matrix.env }}-${VERSION_TAG}.bin"
+            --name "firmware-${{ matrix.env }}.bin"
 
       - name: Upload Latest Release Asset
         env:
