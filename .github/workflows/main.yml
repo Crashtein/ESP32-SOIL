@@ -112,12 +112,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4.2.2
 
-    - name: Download build artifacts
+    - name: Download build artifacts for dev
       uses: actions/download-artifact@v4.1.8
       with:
         name: firmware-dev
         path: ./release/dev
-    - name: Download build artifacts
+
+    - name: Download build artifacts for release
       uses: actions/download-artifact@v4.1.8
       with:
         name: firmware-release
@@ -137,7 +138,7 @@ jobs:
         draft: false
         prerelease: false
 
-    - name: Upload Release Assets
+    - name: Upload Release Asset for dev
       uses: actions/upload-release-asset@v1.0.2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -147,7 +148,7 @@ jobs:
         asset_name: firmware-dev-${{ needs.version.outputs.new_tag || github.ref_name }}.bin
         asset_content_type: application/octet-stream
 
-    - name: Upload Release Assets
+    - name: Upload Release Asset for release
       uses: actions/upload-release-asset@v1.0.2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
