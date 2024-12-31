@@ -158,9 +158,30 @@ jobs:
         asset_name: firmware-release-${{ needs.version.outputs.new_tag || github.ref_name }}.bin
         asset_content_type: application/octet-stream
 
-    - name: Update Latest Release
+    - name: Check if latest release exists
+      id: check-latest
       run: |
-        gh release delete latest --yes || true
+        if gh release view latest; then
+          echo "Latest release exists"
+          echo "exists=true" >> $GITHUB_ENV
+        else
+          echo "Latest release does not exist"
+          echo "exists=false" >> $GITHUB_ENV
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Delete Latest Release if exists
+      if: env.exists == 'true'
+      run: |
+        gh release delete latest --yes
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create Latest Release
+      run: |
         gh release create latest \
           --title "Latest Release" \
           --notes "This is an automatically updated release containing the latest firmware build from ${{ needs.version.outputs.new_tag || github.ref_name }}" \
