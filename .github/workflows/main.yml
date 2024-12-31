@@ -143,7 +143,9 @@ jobs:
             -f name='Latest Release' \
             -f body="This is an automatically updated release containing the latest firmware build from ${{ needs.version.outputs.new_tag || github.ref_name }}" \
             -f draft=false \
-            -f prerelease=false)
+            -f prerelease=false \
+            --raw-field 'draft=false' \
+            --raw-field 'prerelease=false')
           echo "upload_url=$(echo $RESPONSE | jq -r .upload_url)" >> $GITHUB_OUTPUT
 
       - name: Create Release
@@ -159,9 +161,10 @@ jobs:
             -f tag_name="$VERSION_TAG" \
             -f name="Release $VERSION_TAG" \
             -f body="Firmware release $VERSION_TAG" \
-            -f draft=false \
-            -f prerelease=false)
+            --raw-field 'draft=false' \
+            --raw-field 'prerelease=false')
           echo "upload_url=$(echo $RESPONSE | jq -r .upload_url)" >> $GITHUB_OUTPUT
+
 
   release:
     needs: [build, version, pre-release]
