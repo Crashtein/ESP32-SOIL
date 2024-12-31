@@ -105,6 +105,9 @@ jobs:
         if-no-files-found: error
 
   release:
+    strategy:
+      matrix:
+        env: [dev, release]
     needs: [build, version]
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
