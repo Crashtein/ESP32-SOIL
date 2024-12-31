@@ -126,6 +126,19 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Create Release
+        id: create-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION_TAG="${{ needs.version.outputs.new_tag || github.ref_name }}"
+          RESPONSE=$(gh release create "$VERSION_TAG" \
+            --title "Release $VERSION_TAG" \
+            --notes "Firmware release $VERSION_TAG" \
+            --target ${{ github.sha }})
+          RELEASE_ID=$(gh api /repos/${{ github.repository }}/releases/tags/$VERSION_TAG | jq -r .upload_url)
+          echo "upload_url=$RELEASE_ID" >> $GITHUB_OUTPUT
+
       - name: Delete Latest Release if exists
         if: steps.check-latest.outputs.exists == 'true'
         env:
@@ -144,20 +157,6 @@ jobs:
             --latest)
           RELEASE_ID=$(gh api /repos/${{ github.repository }}/releases/tags/latest | jq -r .upload_url)
           echo "upload_url=$RELEASE_ID" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        id: create-release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION_TAG="${{ needs.version.outputs.new_tag || github.ref_name }}"
-          RESPONSE=$(gh release create "$VERSION_TAG" \
-            --title "Release $VERSION_TAG" \
-            --notes "Firmware release $VERSION_TAG" \
-            --target ${{ github.sha }})
-          RELEASE_ID=$(gh api /repos/${{ github.repository }}/releases/tags/$VERSION_TAG | jq -r .upload_url)
-          echo "upload_url=$RELEASE_ID" >> $GITHUB_OUTPUT
-
 
   release:
     needs: [build, version, pre-release]
