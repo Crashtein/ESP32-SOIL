@@ -178,14 +178,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION_TAG="${{ needs.version.outputs.new_tag || github.ref_name }}"
-          gh release upload "$VERSION_TAG" "./release/${{ matrix.env }}/firmware.bin" \
-            --clobber \
-            --name "firmware-${{ matrix.env }}.bin"
+          cp "./release/${{ matrix.env }}/firmware.bin" "./release/firmware-${{ matrix.env }}-${VERSION_TAG}.bin"
+          gh release upload "$VERSION_TAG" "./release/firmware-${{ matrix.env }}-${VERSION_TAG}.bin" --clobber
 
       - name: Upload Latest Release Asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload latest "./release/${{ matrix.env }}/firmware.bin" \
-            --clobber \
-            --name "firmware-${{ matrix.env }}.bin"
+          cp "./release/${{ matrix.env }}/firmware.bin" "./release/firmware-${{ matrix.env }}.bin"
+          gh release upload latest "./release/firmware-${{ matrix.env }}.bin" --clobber
