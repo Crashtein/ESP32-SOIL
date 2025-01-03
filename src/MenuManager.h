@@ -76,13 +76,13 @@ public:
     // funkcja zwracająca level aktualnego menu
     size_t getDepth() const;
 
+    // Funkcja pomocnicza do wywołania callbacku nawigacyjnego
+    void triggerNavigateCallback();
+
 private:
     MenuManager(); // Prywatny konstruktor singletonu
     MenuManager(const MenuManager &) = delete;
     MenuManager &operator=(const MenuManager &) = delete;
-
-    // Funkcja pomocnicza do wywołania callbacku nawigacyjnego
-    void triggerNavigateCallback();
 
     // Funkcja pomocnicza do rekurencyjnego wypisania struktury menu
     void printMenuRecursive(const std::vector<std::shared_ptr<MenuItem>> &menu, int depth) const;

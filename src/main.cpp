@@ -9,8 +9,10 @@
 #include "ExtendedTFT_eSPI.h"
 #include <SPI.h>
 #include "MenuManager.h"
+#include "RFIDManager.h"
 
 ExtendedTFT_eSPI *tft = nullptr;
+RFIDManager *rfid = nullptr;
 
 void goToSleep()
 {
@@ -45,6 +47,10 @@ void checkSerialCommands()
     {
       OTAUpdater::getInstance().beginUpdate();
     }
+    else if (command.equals("dumpRFID"))
+    {
+      RFIDManager::getInstance()->dumpInfoToSerial();
+    }
     else
     {
       Serial.println("Undefined command");
@@ -70,15 +76,17 @@ void buildMenu()
   auto tft_showMenu = [](const int currentIndex, const std::vector<String> currentMenuNames, const std::vector<bool> checkedVector)
   { ExtendedTFT_eSPI::getInstance().showMenuOption(currentIndex, currentMenuNames, checkedVector); };
 
-  // Tworzenie menu
+  // Konfigurowanie obiektów menu "Sensors"
   auto sensorsMenu = std::make_shared<MenuItem>("Sensors", onOptionSelected, onNavigate);
-  auto optionsMenu = std::make_shared<MenuItem>("Menu", onOptionSelected, onNavigate);
 
   auto sensor1SubMenu = std::make_shared<MenuItem>("Sensor 1", onOptionSelected, onNavigate);
   auto sensor2SubMenu = std::make_shared<MenuItem>("Sensor 2", onOptionSelected, onNavigate);
   auto sensor3SubMenu = std::make_shared<MenuItem>("Sensor 3", onOptionSelected, onNavigate);
   auto sensor4SubMenu = std::make_shared<MenuItem>("Sensor 4", onOptionSelected, onNavigate);
 
+  // Konfigurowanie obiektów menu "Menu"
+  auto optionsMenu = std::make_shared<MenuItem>("Menu", onOptionSelected, onNavigate);
+  //// Konfigurowanie obiektów submenu dla "Menu"
   auto reconfigureSubMenu = std::make_shared<MenuItem>("Reconfigure", []()
                                                        { WifiConfig::getInstance().startPortal(); }, tft_showMenu);
   auto updateSubMenu = std::make_shared<MenuItem>("Update", []()
@@ -86,35 +94,68 @@ void buildMenu()
   auto sleepModeSubMenu = std::make_shared<MenuItem>("Force sleep", goToSleep, tft_showMenu);
   auto rfidSubMenu = std::make_shared<MenuItem>("RFID tools>>", []()
                                                 { MenuManager::getInstance().navigateInto(); }, tft_showMenu);
-  auto displayRFIDTagDataSubMenu = std::make_shared<MenuItem>("Read tag data", onOptionSelected, tft_showMenu,true);
-  auto configureNewTagSubMenu = std::make_shared<MenuItem>("Configure new tag", onOptionSelected, tft_showMenu);
-  auto copyRFIDTagDataSubMenu = std::make_shared<MenuItem>("Copy tag data", onOptionSelected, tft_showMenu);
-  auto copyRFIDTagIDSubMenu = std::make_shared<MenuItem>("Copy tag ID", onOptionSelected, tft_showMenu);
-  auto cloneRFIDTagSubMenu = std::make_shared<MenuItem>("Clone tag", onOptionSelected, tft_showMenu);
   auto resetAllConfigSubMenu = std::make_shared<MenuItem>("Reset ALL settings", []()
                                                           { WifiConfig::getInstance().reset(); }, tft_showMenu);
-
-  // Tworzenie podmenu
+  //// Konfigurowanie obiektów submenu dla "RFID tools"
+  auto displayRFIDTagDataSubMenu = std::make_shared<MenuItem>("Read tag data", []()
+    { 
+      auto data = RFIDManager::getInstance()->readJSONStringFromTag(true,false);
+      ExtendedTFT_eSPI::getInstance().printStringFromBeginning(data,1);
+      delay(4000);
+      MenuManager::getInstance().triggerNavigateCallback();
+     }, tft_showMenu);
+  auto configureNewTagSubMenu = std::make_shared<MenuItem>("Configure new tag", []() {
+    auto startServerCallback = []() { 
+      ExtendedTFT_eSPI::getInstance().printStringFromBeginning("Started tag config\nweb server under:\nhttp://"
+      +WiFi.localIP().toString()+"\nOpen browser on\ndevice in your\nnetwork",2); 
+      };
+    auto closeServerCallback = []() { MenuManager::getInstance().triggerNavigateCallback(); };
+    RFIDManager::getInstance()->startConfigServer(startServerCallback, closeServerCallback); }, tft_showMenu);
+  auto copyRFIDTagDataSubMenu = std::make_shared<MenuItem>("Copy tag data", []()
+                                                           { RFIDManager::getInstance()->copyDataSectors(false, false); }, tft_showMenu);
+  auto copyRFIDTagIDSubMenu = std::make_shared<MenuItem>("Copy tag ID", onOptionSelected, tft_showMenu);
+  auto cloneRFIDTagSubMenu = std::make_shared<MenuItem>("Clone tag", onOptionSelected, tft_showMenu);
+  auto displayTagType = std::make_shared<MenuItem>("Tag type info", []()
+    { auto tagType = RFIDManager::getInstance()->getTagType(false);
+    ExtendedTFT_eSPI::getInstance().printStringCentered(tagType, 2);
+    delay(2000);
+    MenuManager::getInstance().triggerNavigateCallback();
+     }, tft_showMenu);
+  auto displayTagUID = std::make_shared<MenuItem>("Tag UID info", []()
+    { auto tagID = RFIDManager::getInstance()->getTagUID(false);
+    ExtendedTFT_eSPI::getInstance().printStringCentered(tagID, 2);
+    delay(2000);
+    MenuManager::getInstance().triggerNavigateCallback(); }, tft_showMenu);
+  auto dumpInfoRFIDTagToSerialSubMenu = std::make_shared<MenuItem>("Tag info to serial", []()
+                                                                   { RFIDManager::getInstance()->dumpInfoToSerial(); }, tft_showMenu);
+  auto clearRFIFTagDataSubMenu = std::make_shared<MenuItem>("Clear tag data", []()
+                                                            { RFIDManager::getInstance()->clearTag(false); }, tft_showMenu);
+  // Tworzenie pierwszego menu "Sensors"
   sensorsMenu->subMenu.push_back(sensor1SubMenu);
   sensorsMenu->subMenu.push_back(sensor2SubMenu);
   sensorsMenu->subMenu.push_back(sensor3SubMenu);
   sensorsMenu->subMenu.push_back(sensor4SubMenu);
-
-  optionsMenu->subMenu.push_back(sleepModeSubMenu);
+  // Tworzenie submenu rfid do menu "Menu"
   rfidSubMenu->subMenu.push_back(displayRFIDTagDataSubMenu);
   rfidSubMenu->subMenu.push_back(configureNewTagSubMenu);
   rfidSubMenu->subMenu.push_back(copyRFIDTagDataSubMenu);
   rfidSubMenu->subMenu.push_back(copyRFIDTagIDSubMenu);
+  rfidSubMenu->subMenu.push_back(clearRFIFTagDataSubMenu);
   rfidSubMenu->subMenu.push_back(cloneRFIDTagSubMenu);
+  rfidSubMenu->subMenu.push_back(displayTagType);
+  rfidSubMenu->subMenu.push_back(displayTagUID);
+  rfidSubMenu->subMenu.push_back(dumpInfoRFIDTagToSerialSubMenu);
+  // Tworzenie menu "Menu"
+  optionsMenu->subMenu.push_back(sleepModeSubMenu);
   optionsMenu->subMenu.push_back(rfidSubMenu);
   optionsMenu->subMenu.push_back(updateSubMenu);
   optionsMenu->subMenu.push_back(reconfigureSubMenu);
   optionsMenu->subMenu.push_back(resetAllConfigSubMenu);
-
+  // Utworzenie Menu składających się z dwóch Menu i podmenu
   menu->setMainMenu({sensorsMenu, optionsMenu});
-  #if DEBUG!=0
-  menu->printMenu();
-  #endif
+  // #if DEBUG!=0
+  // menu->printMenu();
+  // #endif
   menu->navigateInto();
 }
 
@@ -164,6 +205,9 @@ void navigationOnMenu()
 void setup()
 {
   Serial.begin(115200);
+  while(!Serial)
+    ;
+  
   // init digital and analog pins
   PinManager::getInstance().begin({JOYSTICK_PIN_UP, JOYSTICK_PIN_DOWN, JOYSTICK_PIN_LEFT, JOYSTICK_PIN_RIGHT, JOYSTICK_PIN_CENTER, BUTTON_UP, BUTTON_DOWN}, {SENSOR_PIN1, SENSOR_PIN2, SENSOR_PIN3, SENSOR_PIN4, BATTERY_VOLTAGE_PIN});
   pinMode(BUTTON_DOWN, INPUT_PULLUP);
@@ -199,6 +243,7 @@ void setup()
     Serial.println("Wybudzono przyciskiem");
   }
   buildMenu();
+  rfid = RFIDManager::getInstance();
   tft->clear();
 }
 
@@ -230,6 +275,14 @@ void loop()
     tft->printf("Sensor #3: %d   \n", analogRead(SENSOR_PIN3));
     tft->setCursor(0, 56);
     tft->printf("Sensor #4: %d   \n", analogRead(SENSOR_PIN4));
+#if DEBUG!=0
+    // auto tagType = rfid->getTagType();
+    // if (tagType != "No card present"){
+      // outputDebugf("Got tag: %s\n", tagType);
+      // rfid->dumpInfoToSerial();
+    outputDebugln(rfid->readJSONStringFromTag(true,false).c_str());
+    // }
+#endif
   }
 
   navigationOnMenu();

@@ -11,8 +11,7 @@ ExtendedTFT_eSPI &ExtendedTFT_eSPI::getInstance()
 
 ExtendedTFT_eSPI::ExtendedTFT_eSPI() : TFT_eSPI(), sprite(nullptr)
 {
-    // Dodaj debugowanie, aby upewnić się, że konstruktor jest wywoływany
-    Serial.println("ExtendedTFT_eSPI constructor called");
+
 }
 
 ExtendedTFT_eSPI::~ExtendedTFT_eSPI()
@@ -288,3 +287,52 @@ void ExtendedTFT_eSPI::showMenuOption(const int currentIndex, const std::vector<
     }
 }
 
+void ExtendedTFT_eSPI::printStringFromBeginning(const String message,const int textSize){
+    setTextSize(textSize);
+    setTextWrap(true);
+    setTextColor(TFT_WHITE, TFT_BLACK);
+    clear();
+    setCursor(0,0);
+    print(message);
+}
+
+void ExtendedTFT_eSPI::printStringCentered(const String message, const int textSize)
+{
+    // Ustawienia czcionki i kolorów
+    setTextSize(textSize);
+    setTextWrap(false); // Wyłączenie automatycznego zawijania
+    setTextColor(TFT_WHITE, TFT_BLACK);
+
+    int charWidth = 6 * textSize;  // Szerokość jednego znaku w pikselach
+    int charHeight = 8 * textSize; // Wysokość jednego znaku w pikselach
+
+    int nLines = ceil(float(message.length() * charWidth) / width()); // Liczba wymaganych linii
+
+    // Wyczyszczenie ekranu
+    clear();
+
+    // Obliczenie pionowego położenia początkowego, aby tekst był wyśrodkowany
+    int startY = (height() - (nLines * charHeight)) / 2;
+
+    for (int lineNumber = 0; lineNumber < nLines; lineNumber++)
+    {
+        // Oblicz początek i koniec tekstu na bieżącą linię
+        int startIdx = lineNumber * (width() / charWidth);
+        int endIdx = startIdx + (width() / charWidth);
+
+        if (endIdx > message.length())
+        {
+            endIdx = message.length();
+        }
+
+        // Wyciągnij fragment tekstu dla tej linii
+        String lineText = message.substring(startIdx, endIdx);
+
+        // Oblicz poziome położenie początkowe, aby linia była wyśrodkowana
+        int startX = (width() - (lineText.length() * charWidth)) / 2;
+
+        // Ustaw kursor i wyświetl tekst
+        setCursor(startX, startY + (lineNumber * charHeight));
+        print(lineText);
+    }
+}

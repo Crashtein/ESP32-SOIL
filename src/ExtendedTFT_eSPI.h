@@ -59,8 +59,13 @@ public:
     // show menu option
     void showMenuOption(const int currentIndex, std::vector<String>, const std::vector<bool> checkedVector);
 
-private:
-    int oldCurrentOTAProgress = -1;
+    // print string on screen from beginning
+    void printStringFromBeginning(const String message, const int textSize=1);
+
+    // print string on center of display
+    void printStringCentered(const String message, const int textSize=1);
+
+private : int oldCurrentOTAProgress = -1;
     float oldBatteryVoltage=4;
 
     TFT_eSprite *sprite; // Pole do obsługi sprita
