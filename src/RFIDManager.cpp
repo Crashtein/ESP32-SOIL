@@ -137,41 +137,118 @@ bool RFIDManager::writeToTag(JsonDocument json, bool newCardOnly, bool clearSect
 
 bool RFIDManager::writeToTag(String data, bool validateJSON, bool newCardOnly, bool clearSectors)
 {
-    if(validateJSON && !checkIfJSONStringValid(data))
-        return false;
-    if (!checkIfTagPresent(newCardOnly))
-        return false;
-
-    // Zapisz dane w sektorach od 1 do 15 (pomijając sektor 0 z ID)
-    int currentSector = 1;
-    int currentPos = 0;
-
-    while ((currentPos < data.length() || clearSectors) && currentSector < 16)
+    // Validate JSON if required
+    if (validateJSON && !checkIfJSONStringValid(data))
     {
-        if (!authenticateSector(currentSector))
+        outputDebugln("Invalid JSON data");
+        return false;
+    }
+
+    // Check if tag is present and can be read
+    if (!checkIfTagPresent(newCardOnly))
+    {
+        outputDebugln("Tag not present or cannot be read");
+        return false;
+    }
+
+    // Variables for tracking position in data
+    int currentSector = 1; // Start from sector 1 to preserve manufacturer block
+    int currentPos = 0;
+    int dataLength = data.length();
+
+    // Process all sectors that need to be written or cleared
+    while ((currentPos < dataLength || clearSectors) && currentSector < 16)
+    {
+        // Try to authenticate the current sector multiple times if needed
+        int authAttempts = 0;
+        bool authenticated = false;
+        while (authAttempts < 3 && !authenticated)
         {
+            if (authenticateSector(currentSector))
+            {
+                authenticated = true;
+            }
+            else
+            {
+                authAttempts++;
+                delay(10); // Short delay between authentication attempts
+            }
+        }
+
+        if (!authenticated)
+        {
+            outputDebugf("Failed to authenticate sector %d after multiple attempts\n", currentSector);
+            stopRFIDCommunication();
             return false;
         }
 
+        // Write to blocks 0-2 in the sector (block 3 is the sector trailer)
         for (int block = 0; block < 3; block++)
         {
-            byte blockData[16] = {0};
+            byte blockData[16] = {0}; // Initialize with zeros
             int blockAddr = currentSector * 4 + block;
 
-            // Kopiuj dane do bloku
-            for (int i = 0; i < 16 && currentPos < data.length(); i++)
+            // Only copy data if we still have data to write
+            if (currentPos < dataLength)
             {
-                blockData[i] = data[currentPos++];
+                // Copy data to block buffer
+                for (int i = 0; i < 16 && currentPos < dataLength; i++)
+                {
+                    blockData[i] = data[currentPos++];
+                }
             }
 
-            if (!writeDataToBlock(blockAddr, blockData))
+            // Try to write block multiple times if needed
+            int writeAttempts = 0;
+            bool writeSuccess = false;
+            while (writeAttempts < 3 && !writeSuccess)
             {
+                if (writeDataToBlock(blockAddr, blockData))
+                {
+                    writeSuccess = true;
+                }
+                else
+                {
+                    writeAttempts++;
+                    delay(10); // Short delay between write attempts
+                }
+            }
+
+            if (!writeSuccess)
+            {
+                outputDebugf("Failed to write block %d in sector %d after multiple attempts\n", block, currentSector);
+                stopRFIDCommunication();
+                return false;
+            }
+
+            // Verify written data
+            byte verifyData[18];
+            if (readDataFromBlock(blockAddr, verifyData))
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    if (verifyData[i] != blockData[i])
+                    {
+                        outputDebugf("Data verification failed for block %d in sector %d\n", block, currentSector);
+                        stopRFIDCommunication();
+                        return false;
+                    }
+                }
+            }
+            else
+            {
+                outputDebugf("Failed to verify block %d in sector %d\n", block, currentSector);
+                stopRFIDCommunication();
                 return false;
             }
         }
+
         currentSector++;
     }
+
+    // Properly end communication
     stopRFIDCommunication();
+    outputDebugln("Write operation completed successfully");
     return true;
 }
 
@@ -257,10 +334,8 @@ bool RFIDManager::checkIfTagPresent(bool newCardOnly)
         outputDebugln("No new tag found");
         return false;
     }
-    while (!wakeUpRFID())
+    if(!wakeUpRFID())
     {
-        if (rfid->PICC_Select(&(rfid->uid))!=MFRC522::STATUS_OK)
-            break;
         outputDebugln("Could not wake up tag (may not be present)");
         return false;
     }
@@ -269,6 +344,10 @@ bool RFIDManager::checkIfTagPresent(bool newCardOnly)
         outputDebugln("Cannot read card serial");
         return false;
     }
+    // if (rfid->PICC_Select(&(rfid->uid)) != MFRC522::STATUS_OK){
+    //     outputDebugln("Cannot select PICC");
+    //     return false;
+    // }
     return true;
 }
 
@@ -286,67 +365,232 @@ String RFIDManager::readJSONStringFromTag(bool pretty, bool newCardOnly)
     return jsonString;
 }
 
-bool RFIDManager::copyDataSectors(bool includeUID,bool newCardOnly)
+bool RFIDManager::copyDataSectors(bool includeUID, bool newCardOnly)
 {
-    if(!checkIfTagPresent(newCardOnly))
+    outputDebugln("Starting tag copying process...");
+
+    // Check and authenticate source tag
+    if (!checkIfTagPresent(newCardOnly))
+    {
+        outputDebugln("Source tag not present or cannot be read");
         return false;
+    }
+
+    // Dump debug info about source tag
+    rfid->PICC_DumpDetailsToSerial(&(rfid->uid));
+
     MFRC522::PICC_Type sourceType = rfid->PICC_GetType(rfid->uid.sak);
-    byte sourceData[64][16];
-    rfid->PICC_Select(&(rfid->uid));
-    outputDebugln("Reading tag data");
-    // Czytaj dane z źródłowego tagu
+    outputDebugf("Source tag type: %s\n", rfid->PICC_GetTypeName(sourceType));
+
+    byte sourceData[64][16] = {0};
+
+    outputDebugln("Reading source tag data...");
+
+    // Read data from source tag
     for (int sector = (includeUID ? 0 : 1); sector < 16; sector++)
     {
         if (!authenticateSector(sector))
         {
+            outputDebugf("Failed to authenticate source sector %d\n", sector);
+            stopRFIDCommunication();
             return false;
         }
 
         for (int block = 0; block < 4; block++)
         {
-            if (!readDataFromBlock(sector * 4 + block, sourceData[sector * 4 + block]))
+            int blockAddr = sector * 4 + block;
+            if (!readDataFromBlock(blockAddr, sourceData[blockAddr]))
             {
+                outputDebugf("Failed to read block %d in sector %d\n", block, sector);
+                stopRFIDCommunication();
                 return false;
             }
+            outputDebugf("Successfully read block %d in sector %d\n", block, sector);
         }
     }
+
     stopRFIDCommunication();
-    outputDebugln("Waiting to new tag");
-    // Czekaj na nowy tag
-    delay(2000);
-    while (!rfid->PICC_IsNewCardPresent() || !rfid->PICC_ReadCardSerial())
+    outputDebugln("Successfully read all data from source tag");
+
+    // Pełny reset RFID
+    delete rfid;
+    SPI.end();
+    delay(500); // Zwiększone opóźnienie
+
+    // Reinicjalizacja MFRC522
+    SPI.begin(RFID_SCK_PIN, RFID_MISO_PIN, RFID_MOSI_PIN, RFID_SDA_PIN);
+    rfid = new MFRC522(RFID_SDA_PIN, RFID_RST_PIN);
+    rfid->PCD_Init();
+    delay(500); // Zwiększone opóźnienie
+
+    // Debug info o stanie czytnika
+    byte v = rfid->PCD_ReadRegister(MFRC522::VersionReg);
+    outputDebugf("MFRC522 Software Version: 0x%x\n", v);
+
+    outputDebugln("Please remove the source tag and present destination tag...");
+    delay(1000);
+
+    // Wait for destination tag
+    outputDebugln("Waiting for destination tag...");
+    int waitAttempts = 0;
+    const int maxWaitAttempts = 100;
+    bool cardFound = false;
+
+    while (waitAttempts < maxWaitAttempts && !cardFound)
     {
         delay(100);
-    }
-    if (rfid->PICC_Select(&(rfid->uid))){
-        outputDebugln("Could not select PICC");
-        return false;
-    }
-    // Sprawdź czy nowy tag jest tego samego typu
-    if (!checkIfTagPresent(false) && rfid->PICC_GetType(rfid->uid.sak) != sourceType)
-    {
-        return false;
-    }
-    outputDebugln("Writing data to new tag");
-    // Zapisz dane na nowym tagu
-    for (int sector = (includeUID ? 0 : 1); sector < 16; sector++)
-    {
-        if (!authenticateSector(sector))
+
+        if (!rfid->PICC_IsNewCardPresent())
         {
-            outputDebugln("Write data error when authenicating to sector");
+            waitAttempts++;
+            continue;
+        }
+
+        if (!rfid->PICC_ReadCardSerial())
+        {
+            waitAttempts++;
+            continue;
+        }
+
+        cardFound = true;
+        outputDebugln("New tag detected!");
+
+        // Dump debug info about destination tag
+        rfid->PICC_DumpDetailsToSerial(&(rfid->uid));
+
+        MFRC522::PICC_Type destType = rfid->PICC_GetType(rfid->uid.sak);
+        outputDebugf("Destination tag type: %s\n", rfid->PICC_GetTypeName(destType));
+    }
+
+    if (!cardFound)
+    {
+        outputDebugln("Timeout waiting for destination tag");
+        return false;
+    }
+
+    // Reinicjalizacja klucza
+    MFRC522::MIFARE_Key newKey;
+    for (byte i = 0; i < 6; i++)
+    {
+        newKey.keyByte[i] = 0xFF;
+    }
+
+    outputDebugln("Attempting authentication with destination tag...");
+
+    // Test authentication for sector 1 first
+    byte testBlock = 4; // First block of sector 1
+    outputDebugf("Testing authentication for block %d...\n", testBlock);
+
+    // Debug info before authentication
+    outputDebugf("Card UID: ");
+    for (byte i = 0; i < rfid->uid.size; i++)
+    {
+        outputDebugf("%02X:", rfid->uid.uidByte[i]);
+    }
+    outputDebugln("");
+
+    // Próba autoryzacji z dodatkowymi informacjami
+    MFRC522::StatusCode status = rfid->PCD_Authenticate(
+        MFRC522::PICC_CMD_MF_AUTH_KEY_A,
+        testBlock,
+        &newKey,
+        &(rfid->uid));
+
+    if (status != MFRC522::STATUS_OK)
+    {
+        outputDebugf("Initial authentication failed. Status = %d\n", status);
+        outputDebugln("Attempting recovery process...");
+
+        // Próba odzyskania komunikacji
+        rfid->PCD_StopCrypto1();
+        delay(100);
+        rfid->PCD_Reset();
+        delay(100);
+        rfid->PCD_Init();
+        delay(100);
+
+        if (!rfid->PICC_IsNewCardPresent() || !rfid->PICC_ReadCardSerial())
+        {
+            outputDebugln("Recovery failed - cannot redetect card");
             return false;
         }
 
-        for (int block = 0; block < 4; block++)
+        status = rfid->PCD_Authenticate(
+            MFRC522::PICC_CMD_MF_AUTH_KEY_A,
+            testBlock,
+            &newKey,
+            &(rfid->uid));
+
+        if (status != MFRC522::STATUS_OK)
         {
-            if (!writeDataToBlock(sector * 4 + block, sourceData[sector * 4 + block]))
-            {
-                outputDebugln("Write data error when writing to block");
-                return false;
-            }
+            outputDebugf("Recovery authentication failed. Status = %d\n", status);
+            return false;
         }
     }
+
+    outputDebugln("Initial authentication successful, proceeding with copy...");
+
+    // Write data to destination tag
+    for (int sector = (includeUID ? 0 : 1); sector < 16; sector++)
+    {
+        rfid->PCD_StopCrypto1();
+        delay(50);
+
+        status = rfid->PCD_Authenticate(
+            MFRC522::PICC_CMD_MF_AUTH_KEY_A,
+            sector * 4,
+            &newKey,
+            &(rfid->uid));
+
+        if (status != MFRC522::STATUS_OK)
+        {
+            outputDebugf("Failed to authenticate sector %d. Status = %d\n", sector, status);
+            stopRFIDCommunication();
+            return false;
+        }
+
+        for (int block = 0; block < 3; block++)
+        {
+            int blockAddr = sector * 4 + block;
+
+            if (!writeDataToBlock(blockAddr, sourceData[blockAddr]))
+            {
+                outputDebugf("Failed to write block %d in sector %d\n", block, sector);
+                stopRFIDCommunication();
+                return false;
+            }
+
+            byte verifyData[18];
+            if (!readDataFromBlock(blockAddr, verifyData))
+            {
+                outputDebugf("Failed to verify block %d in sector %d\n", block, sector);
+                stopRFIDCommunication();
+                return false;
+            }
+
+            bool verifyOk = true;
+            for (int i = 0; i < 16; i++)
+            {
+                if (verifyData[i] != sourceData[blockAddr][i])
+                {
+                    verifyOk = false;
+                    break;
+                }
+            }
+
+            if (!verifyOk)
+            {
+                outputDebugf("Data verification failed for block %d in sector %d\n", block, sector);
+                stopRFIDCommunication();
+                return false;
+            }
+
+            outputDebugf("Successfully wrote and verified block %d in sector %d\n", block, sector);
+        }
+    }
+
     stopRFIDCommunication();
+    outputDebugln("Copy operation completed successfully");
     return true;
 }
 

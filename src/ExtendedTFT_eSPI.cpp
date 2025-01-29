@@ -11,7 +11,6 @@ ExtendedTFT_eSPI &ExtendedTFT_eSPI::getInstance()
 
 ExtendedTFT_eSPI::ExtendedTFT_eSPI() : TFT_eSPI(), sprite(nullptr)
 {
-
 }
 
 ExtendedTFT_eSPI::~ExtendedTFT_eSPI()
@@ -241,7 +240,7 @@ void ExtendedTFT_eSPI::printSleepInfo()
 
 void ExtendedTFT_eSPI::showMenuOption(const int currentIndex, const std::vector<String> currentMenuNames, const std::vector<bool> checkedVector)
 {
-    clear(); // Clear the screen
+    clear();         // Clear the screen
     drawStatusBar(); // Draw the status bar
 
     const int skippedPixelsOnTop = 8;
@@ -249,29 +248,37 @@ void ExtendedTFT_eSPI::showMenuOption(const int currentIndex, const std::vector<
 
     setTextSize(textSize); // Set text size
 
-    int lineHeight = 8*textSize+2; // Height of each line (adjust as needed)
-    int screenHeight = height()-skippedPixelsOnTop; // Get the height of the screen
-    int maxLines = screenHeight / lineHeight; // Calculate the maximum number of lines that can fit on the screen
+    int lineHeight = 8 * textSize + 2;                // Height of each line (adjust as needed)
+    int screenHeight = height() - skippedPixelsOnTop; // Get the height of the screen
+    int maxLines = screenHeight / lineHeight;         // Calculate the maximum number of lines that can fit on the screen
 
     int startLine = 0; // Start line for displaying menu items
-    if (currentIndex >= maxLines-1)
+    if (currentIndex >= maxLines - 1)
     { // Adjust start line if the selected item is beyond the screen height
         startLine = currentIndex - maxLines + 1;
-        if(currentIndex < (currentMenuNames.size()-1)){
+        if (currentIndex < (currentMenuNames.size() - 1))
+        {
             startLine++;
         }
     }
 
-    for (int i = startLine; i < currentMenuNames.size() && i < startLine + maxLines; ++i) {
+    for (int i = startLine; i < currentMenuNames.size() && i < startLine + maxLines; ++i)
+    {
         int y = (i - startLine) * lineHeight + skippedPixelsOnTop; // Calculate the y position for the current line
 
-        if (i == currentIndex) {
-            if(checkedVector[i] == true){
+        if (i == currentIndex)
+        {
+            if (checkedVector[i] == true)
+            {
                 setTextColor(TFT_GREEN, TFT_BLUE);
-            }else{
+            }
+            else
+            {
                 setTextColor(TFT_BLACK, TFT_WHITE);
-            } 
-        } else {
+            }
+        }
+        else
+        {
             if (checkedVector[i] == true)
             {
                 setTextColor(TFT_GREEN, TFT_BLACK);
@@ -283,20 +290,21 @@ void ExtendedTFT_eSPI::showMenuOption(const int currentIndex, const std::vector<
         }
 
         setCursor((width() - textWidth(currentMenuNames[i])) / 2, y); // Center the text horizontally
-        print(currentMenuNames[i]); // Print the menu item
+        print(currentMenuNames[i]);                                   // Print the menu item
     }
 }
 
-void ExtendedTFT_eSPI::printStringFromBeginning(const String message,const int textSize){
+void ExtendedTFT_eSPI::printStringFromBeginning(const String message, const int textSize)
+{
     setTextSize(textSize);
     setTextWrap(true);
     setTextColor(TFT_WHITE, TFT_BLACK);
     clear();
-    setCursor(0,0);
+    setCursor(0, 0);
     print(message);
 }
 
-void ExtendedTFT_eSPI::printStringCentered(const String message, const int textSize)
+void ExtendedTFT_eSPI::printString(const String message, const int textSize, bool centered)
 {
     // Ustawienia czcionki i kolorów
     setTextSize(textSize);
@@ -305,8 +313,35 @@ void ExtendedTFT_eSPI::printStringCentered(const String message, const int textS
 
     int charWidth = 6 * textSize;  // Szerokość jednego znaku w pikselach
     int charHeight = 8 * textSize; // Wysokość jednego znaku w pikselach
+    int maxCharsPerLine = width() / charWidth;
 
-    int nLines = ceil(float(message.length() * charWidth) / width()); // Liczba wymaganych linii
+    // Podziel tekst na linie na podstawie znaków nowej linii
+    std::vector<String> lines;
+    int startIdx = 0;
+    int endIdx = message.indexOf('\n', startIdx);
+    while (endIdx != -1)
+    {
+        String line = message.substring(startIdx, endIdx);
+        // Podziel linie, które są zbyt szerokie
+        while (line.length() > maxCharsPerLine)
+        {
+            lines.push_back(line.substring(0, maxCharsPerLine));
+            line = line.substring(maxCharsPerLine);
+        }
+        lines.push_back(line);
+        startIdx = endIdx + 1;
+        endIdx = message.indexOf('\n', startIdx);
+    }
+    // Dodaj ostatnią linię i podziel ją, jeśli jest zbyt szeroka
+    String lastLine = message.substring(startIdx);
+    while (lastLine.length() > maxCharsPerLine)
+    {
+        lines.push_back(lastLine.substring(0, maxCharsPerLine));
+        lastLine = lastLine.substring(maxCharsPerLine);
+    }
+    lines.push_back(lastLine);
+
+    int nLines = lines.size();
 
     // Wyczyszczenie ekranu
     clear();
@@ -316,23 +351,147 @@ void ExtendedTFT_eSPI::printStringCentered(const String message, const int textS
 
     for (int lineNumber = 0; lineNumber < nLines; lineNumber++)
     {
-        // Oblicz początek i koniec tekstu na bieżącą linię
-        int startIdx = lineNumber * (width() / charWidth);
-        int endIdx = startIdx + (width() / charWidth);
-
-        if (endIdx > message.length())
-        {
-            endIdx = message.length();
+        String lineText = lines[lineNumber];
+        int startX = 0;
+        if(centered){
+            // Oblicz poziome położenie początkowe, aby linia była wyśrodkowana
+            startX = (width() - (lineText.length() * charWidth)) / 2;
         }
-
-        // Wyciągnij fragment tekstu dla tej linii
-        String lineText = message.substring(startIdx, endIdx);
-
-        // Oblicz poziome położenie początkowe, aby linia była wyśrodkowana
-        int startX = (width() - (lineText.length() * charWidth)) / 2;
-
         // Ustaw kursor i wyświetl tekst
         setCursor(startX, startY + (lineNumber * charHeight));
         print(lineText);
     }
+}
+
+void ExtendedTFT_eSPI::printString(const String message, bool autoSize, bool centered)
+{
+    const int maxTextSize = 4; // Maksymalny rozmiar czcionki
+    int optimalTextSize = 1;   // Początkowy rozmiar czcionki
+
+    // Wyznaczenie optymalnego rozmiaru czcionki
+    for (int textSize = 1; textSize <= maxTextSize; textSize++)
+    {
+        setTextSize(textSize);
+
+        int charWidth = 6 * textSize;  // Szerokość jednego znaku w pikselach
+        int charHeight = 8 * textSize; // Wysokość jednego znaku w pikselach
+        int maxCharsPerLine = width() / charWidth;
+
+        // Podziel wiadomość na linie
+        std::vector<String> lines;
+        int startIdx = 0;
+        int endIdx = message.indexOf('\n', startIdx);
+        while (endIdx != -1)
+        {
+            String line = message.substring(startIdx, endIdx);
+            while (line.length() > maxCharsPerLine)
+            {
+                lines.push_back(line.substring(0, maxCharsPerLine));
+                line = line.substring(maxCharsPerLine);
+            }
+            lines.push_back(line);
+            startIdx = endIdx + 1;
+            endIdx = message.indexOf('\n', startIdx);
+        }
+
+        String lastLine = message.substring(startIdx);
+        while (lastLine.length() > maxCharsPerLine)
+        {
+            lines.push_back(lastLine.substring(0, maxCharsPerLine));
+            lastLine = lastLine.substring(maxCharsPerLine);
+        }
+        lines.push_back(lastLine);
+
+        int nLines = lines.size();
+
+        // Jeśli tekst w obecnym rozmiarze czcionki nie mieści się na ekranie
+        if (nLines * charHeight > height())
+        {
+            break;
+        }
+
+        // Aktualizacja optymalnego rozmiaru czcionki
+        optimalTextSize = textSize;
+    }
+
+    // Wyświetlenie tekstu z optymalnym rozmiarem czcionki
+    setTextSize(optimalTextSize);
+    setTextWrap(false);
+    setTextColor(TFT_WHITE, TFT_BLACK);
+
+    int charWidth = 6 * optimalTextSize;
+    int charHeight = 8 * optimalTextSize;
+    int maxCharsPerLine = width() / charWidth;
+
+    std::vector<String> lines;
+    int startIdx = 0;
+    int endIdx = message.indexOf('\n', startIdx);
+    while (endIdx != -1)
+    {
+        String line = message.substring(startIdx, endIdx);
+        while (line.length() > maxCharsPerLine)
+        {
+            lines.push_back(line.substring(0, maxCharsPerLine));
+            line = line.substring(maxCharsPerLine);
+        }
+        lines.push_back(line);
+        startIdx = endIdx + 1;
+        endIdx = message.indexOf('\n', startIdx);
+    }
+
+    String lastLine = message.substring(startIdx);
+    while (lastLine.length() > maxCharsPerLine)
+    {
+        lines.push_back(lastLine.substring(0, maxCharsPerLine));
+        lastLine = lastLine.substring(maxCharsPerLine);
+    }
+    lines.push_back(lastLine);
+
+    int nLines = lines.size();
+    clear();
+
+    int startY = (height() - (nLines * charHeight)) / 2;
+
+    for (int lineNumber = 0; lineNumber < nLines; lineNumber++)
+    {
+        String lineText = lines[lineNumber];
+        int startX = 0;
+        if (centered)
+        {
+            startX = (width() - (lineText.length() * charWidth)) / 2;
+        }
+        setCursor(startX, startY + (lineNumber * charHeight));
+        print(lineText);
+    }
+}
+
+String ExtendedTFT_eSPI::removeSpecificCharacters(const String &input, const char pattern[])
+{
+    String result;
+    for (int j = 0; j < input.length();j++)
+    {
+        char ch = input[j];
+        bool shouldRemove = false;
+        //remove spaces on beginning or spaces after spaces or next line char
+        if ((j == 0 && ch == ' ') || (j != 0 && ch == ' ' && (input[j - 1] == '\n' || input[j-1] == ' ')))
+            continue;
+
+        // Sprawdź, czy znak znajduje się w wzorcu do usunięcia
+        for (int i = 0; pattern[i] != '\0'; i++)
+        {
+
+            if (ch == pattern[i])
+            {
+                shouldRemove = true;
+                break;
+            }
+        }
+
+        // Dodaj znak, jeśli nie ma go w wzorcu
+        if (!shouldRemove)
+        {
+            result += ch;
+        }
+    }
+    return result;
 }

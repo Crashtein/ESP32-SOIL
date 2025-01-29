@@ -24,6 +24,13 @@
 #define RFID_SCK_PIN 22
 #endif
 
+#define PRETTY true
+#define NO_PRETTY false
+#define ALLOW_OLD_TAG false
+#define NO_OLD_TAG true
+#define INCLUDE_UID true
+#define NOINCLUDE_UID false
+
 class RFIDManager
 {
 private:

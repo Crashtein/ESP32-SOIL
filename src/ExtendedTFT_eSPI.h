@@ -8,6 +8,11 @@
 #include "MQTTManager.h"
 #include "WiFiManager.h"
 
+#define CENTERED true
+#define TO_LEFT false
+#define AUTOSIZE true
+#define NO_AUTOSIZE FALSE
+
 class ExtendedTFT_eSPI : public TFT_eSPI
 {
 public:
@@ -60,13 +65,20 @@ public:
     void showMenuOption(const int currentIndex, std::vector<String>, const std::vector<bool> checkedVector);
 
     // print string on screen from beginning
-    void printStringFromBeginning(const String message, const int textSize=1);
+    void printStringFromBeginning(const String message, const int textSize = 1);
 
-    // print string on center of display
-    void printStringCentered(const String message, const int textSize=1);
+    // print string on display
+    void printString(const String message, const int textSize = 1, bool centered = false);
 
-private : int oldCurrentOTAProgress = -1;
-    float oldBatteryVoltage=4;
+    // print string on display, pick auto max text size
+    void printString(const String message, bool autoSize = true, bool centered = false);
+
+    // remove specific chars from string
+    static String removeSpecificCharacters(const String &input, const char pattern[] = "\t,;\"'");
+
+private:
+    int oldCurrentOTAProgress = -1;
+    float oldBatteryVoltage = 4;
 
     TFT_eSprite *sprite; // Pole do obsługi sprita
     // Prywatny konstruktor i destruktor
